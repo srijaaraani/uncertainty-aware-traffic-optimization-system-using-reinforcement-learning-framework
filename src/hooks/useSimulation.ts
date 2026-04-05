@@ -92,6 +92,10 @@ export function useSimulation(options: UseSimulationOptions = {}) {
   });
   const [lastSignalChangeTime, setLastSignalChangeTime] = useState<number>(Date.now());
 
+  // Track whether simulation has been started at least once in current session
+  const [hasSimulationBeenStarted, setHasSimulationBeenStarted] = useState(false);
+  const [simulationSessionId, setSimulationSessionId] = useState(0);
+
   // Agent control state
   const [agentEnabled, setAgentEnabled] = useState(false);
   const [agentDecisionInterval, setAgentDecisionInterval] = useState(1000); // 1 second between decisions
@@ -113,6 +117,7 @@ export function useSimulation(options: UseSimulationOptions = {}) {
 
   const start = useCallback(() => {
     setIsRunning(true);
+    setHasSimulationBeenStarted(true);
   }, []);
 
   const pause = useCallback(() => {
@@ -124,6 +129,8 @@ export function useSimulation(options: UseSimulationOptions = {}) {
     setSignalState(DEFAULT_SIGNAL_STATE);
     setVehicleCounts(DEFAULT_COUNTS);
     setLastSignalChangeTime(Date.now());
+    setHasSimulationBeenStarted(false);
+    setSimulationSessionId((prev) => prev + 1);
     signalController.reset('NS');
     trafficSignalAgent.resetHistory();
     resetVehicleIdCounter();
@@ -460,6 +467,9 @@ export function useSimulation(options: UseSimulationOptions = {}) {
     dqnMetrics,
     trainDQNAgent,
     lastObservationRef,
+    // Run tracking
+    hasSimulationBeenStarted,
+    simulationSessionId,
     // Reward computation
     computeAndLogReward,
   };

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * RoadView Component
  * 
  * Renders the road infrastructure including:
@@ -23,13 +23,24 @@ export function RoadView({ config, width, height }: RoadViewProps) {
   const { intersectionSize, roadWidth, laneConfig } = config;
   const centerX = width / 2;
   const centerY = height / 2;
-  const halfIntersection = intersectionSize / 2;
+
+  // World scaling from 600x600 coordinate system
+  const worldScaleX = width / 600;
+  const worldScaleY = height / 600;
+
+  const scaledRoadWidthX = roadWidth * worldScaleX;
+  const scaledRoadWidthY = roadWidth * worldScaleY;
+  const scaledIntersectionWidth = intersectionSize * worldScaleX;
+  const scaledIntersectionHeight = intersectionSize * worldScaleY;
+  const halfIntersectionWidth = scaledIntersectionWidth / 2;
+  const halfIntersectionHeight = scaledIntersectionHeight / 2;
 
   // Calculate road widths based on lane configuration
   const nsLanes = Math.max(laneConfig.north, laneConfig.south);
   const ewLanes = Math.max(laneConfig.east, laneConfig.west);
-  const nsRoadWidth = nsLanes * roadWidth * 2; // Both directions
-  const ewRoadWidth = ewLanes * roadWidth * 2;
+  const ewRoadWidth = ewLanes * scaledRoadWidthY * 2;
+  // Force North-South width to be equal to East-West width (requested adjustment)
+  const nsRoadWidth = ewRoadWidth;
 
   return (
     <svg
@@ -64,10 +75,10 @@ export function RoadView({ config, width, height }: RoadViewProps) {
 
       {/* Intersection center (slightly darker) */}
       <rect
-        x={centerX - intersectionSize / 2}
-        y={centerY - intersectionSize / 2}
-        width={intersectionSize}
-        height={intersectionSize}
+        x={centerX - scaledIntersectionWidth / 2}
+        y={centerY - scaledIntersectionHeight / 2}
+        width={scaledIntersectionWidth}
+        height={scaledIntersectionHeight}
         style={{ fill: 'hsl(215, 16%, 20%)' }}
       />
 
@@ -77,7 +88,7 @@ export function RoadView({ config, width, height }: RoadViewProps) {
         x1={centerX - 2}
         y1={0}
         x2={centerX - 2}
-        y2={centerY - halfIntersection}
+        y2={centerY - halfIntersectionHeight}
         stroke="#F4C430"
         strokeWidth={2}
       />
@@ -85,13 +96,13 @@ export function RoadView({ config, width, height }: RoadViewProps) {
         x1={centerX + 2}
         y1={0}
         x2={centerX + 2}
-        y2={centerY - halfIntersection}
+        y2={centerY - halfIntersectionHeight}
         stroke="#F4C430"
         strokeWidth={2}
       />
       <line
         x1={centerX - 2}
-        y1={centerY + halfIntersection}
+        y1={centerY + halfIntersectionHeight}
         x2={centerX - 2}
         y2={height}
         stroke="#F4C430"
@@ -99,7 +110,7 @@ export function RoadView({ config, width, height }: RoadViewProps) {
       />
       <line
         x1={centerX + 2}
-        y1={centerY + halfIntersection}
+        y1={centerY + halfIntersectionHeight}
         x2={centerX + 2}
         y2={height}
         stroke="#F4C430"
@@ -111,7 +122,7 @@ export function RoadView({ config, width, height }: RoadViewProps) {
       <line
         x1={0}
         y1={centerY - 2}
-        x2={centerX - halfIntersection}
+        x2={centerX - halfIntersectionWidth}
         y2={centerY - 2}
         stroke="#F4C430"
         strokeWidth={2}
@@ -119,13 +130,13 @@ export function RoadView({ config, width, height }: RoadViewProps) {
       <line
         x1={0}
         y1={centerY + 2}
-        x2={centerX - halfIntersection}
+        x2={centerX - halfIntersectionWidth}
         y2={centerY + 2}
         stroke="#F4C430"
         strokeWidth={2}
       />
       <line
-        x1={centerX + halfIntersection}
+        x1={centerX + halfIntersectionWidth}
         y1={centerY - 2}
         x2={width}
         y2={centerY - 2}
@@ -133,7 +144,7 @@ export function RoadView({ config, width, height }: RoadViewProps) {
         strokeWidth={2}
       />
       <line
-        x1={centerX + halfIntersection}
+        x1={centerX + halfIntersectionWidth}
         y1={centerY + 2}
         x2={width}
         y2={centerY + 2}
@@ -146,38 +157,38 @@ export function RoadView({ config, width, height }: RoadViewProps) {
         <>
           {/* Right side lanes (northbound traffic) */}
           <line
-            x1={centerX + roadWidth}
+            x1={centerX + scaledRoadWidthX}
             y1={0}
-            x2={centerX + roadWidth}
-            y2={centerY - halfIntersection}
+            x2={centerX + scaledRoadWidthX}
+            y2={centerY - halfIntersectionHeight}
             stroke="white"
             strokeWidth={2}
             strokeDasharray="20,10"
           />
           {/* Left side lanes (southbound traffic) */}
           <line
-            x1={centerX - roadWidth}
+            x1={centerX - scaledRoadWidthX}
             y1={0}
-            x2={centerX - roadWidth}
-            y2={centerY - halfIntersection}
+            x2={centerX - scaledRoadWidthX}
+            y2={centerY - halfIntersectionHeight}
             stroke="white"
             strokeWidth={2}
             strokeDasharray="20,10"
           />
           {/* South approach */}
           <line
-            x1={centerX + roadWidth}
-            y1={centerY + halfIntersection}
-            x2={centerX + roadWidth}
+            x1={centerX + scaledRoadWidthX}
+            y1={centerY + halfIntersectionHeight}
+            x2={centerX + scaledRoadWidthX}
             y2={height}
             stroke="white"
             strokeWidth={2}
             strokeDasharray="20,10"
           />
           <line
-            x1={centerX - roadWidth}
-            y1={centerY + halfIntersection}
-            x2={centerX - roadWidth}
+            x1={centerX - scaledRoadWidthX}
+            y1={centerY + halfIntersectionHeight}
+            x2={centerX - scaledRoadWidthX}
             y2={height}
             stroke="white"
             strokeWidth={2}
@@ -192,37 +203,37 @@ export function RoadView({ config, width, height }: RoadViewProps) {
           {/* West approach */}
           <line
             x1={0}
-            y1={centerY - roadWidth}
-            x2={centerX - halfIntersection}
-            y2={centerY - roadWidth}
+            y1={centerY - scaledRoadWidthY}
+            x2={centerX - halfIntersectionWidth}
+            y2={centerY - scaledRoadWidthY}
             stroke="white"
             strokeWidth={2}
             strokeDasharray="20,10"
           />
           <line
             x1={0}
-            y1={centerY + roadWidth}
-            x2={centerX - halfIntersection}
-            y2={centerY + roadWidth}
+            y1={centerY + scaledRoadWidthY}
+            x2={centerX - halfIntersectionWidth}
+            y2={centerY + scaledRoadWidthY}
             stroke="white"
             strokeWidth={2}
             strokeDasharray="20,10"
           />
           {/* East approach */}
           <line
-            x1={centerX + halfIntersection}
-            y1={centerY - roadWidth}
+            x1={centerX + halfIntersectionWidth}
+            y1={centerY - scaledRoadWidthY}
             x2={width}
-            y2={centerY - roadWidth}
+            y2={centerY - scaledRoadWidthY}
             stroke="white"
             strokeWidth={2}
             strokeDasharray="20,10"
           />
           <line
-            x1={centerX + halfIntersection}
-            y1={centerY + roadWidth}
+            x1={centerX + halfIntersectionWidth}
+            y1={centerY + scaledRoadWidthY}
             x2={width}
-            y2={centerY + roadWidth}
+            y2={centerY + scaledRoadWidthY}
             stroke="white"
             strokeWidth={2}
             strokeDasharray="20,10"
@@ -233,7 +244,7 @@ export function RoadView({ config, width, height }: RoadViewProps) {
       {/* Crosswalks - North */}
       <CrosswalkStripes
         x={centerX - nsRoadWidth / 2 + 5}
-        y={centerY - halfIntersection - 20}
+        y={centerY - halfIntersectionHeight - 12}
         width={nsRoadWidth - 10}
         height={15}
         isVertical={false}
@@ -242,7 +253,7 @@ export function RoadView({ config, width, height }: RoadViewProps) {
       {/* Crosswalks - South */}
       <CrosswalkStripes
         x={centerX - nsRoadWidth / 2 + 5}
-        y={centerY + halfIntersection + 5}
+        y={centerY + halfIntersectionHeight - 3}
         width={nsRoadWidth - 10}
         height={15}
         isVertical={false}
@@ -250,7 +261,7 @@ export function RoadView({ config, width, height }: RoadViewProps) {
 
       {/* Crosswalks - East */}
       <CrosswalkStripes
-        x={centerX + halfIntersection + 5}
+        x={centerX + halfIntersectionWidth - 3}
         y={centerY - ewRoadWidth / 2 + 5}
         width={15}
         height={ewRoadWidth - 10}
@@ -259,7 +270,7 @@ export function RoadView({ config, width, height }: RoadViewProps) {
 
       {/* Crosswalks - West */}
       <CrosswalkStripes
-        x={centerX - halfIntersection - 20}
+        x={centerX - halfIntersectionWidth - 3}
         y={centerY - ewRoadWidth / 2 + 5}
         width={15}
         height={ewRoadWidth - 10}
@@ -270,35 +281,35 @@ export function RoadView({ config, width, height }: RoadViewProps) {
       {/* North approach */}
       <line
         x1={centerX}
-        y1={centerY - halfIntersection - 25}
+        y1={centerY - halfIntersectionHeight - 25}
         x2={centerX + nsRoadWidth / 2 - 5}
-        y2={centerY - halfIntersection - 25}
+        y2={centerY - halfIntersectionHeight - 25}
         stroke="white"
         strokeWidth={4}
       />
       {/* South approach */}
       <line
         x1={centerX - nsRoadWidth / 2 + 5}
-        y1={centerY + halfIntersection + 25}
+        y1={centerY + halfIntersectionHeight + 25}
         x2={centerX}
-        y2={centerY + halfIntersection + 25}
+        y2={centerY + halfIntersectionHeight + 25}
         stroke="white"
         strokeWidth={4}
       />
       {/* East approach */}
       <line
-        x1={centerX + halfIntersection + 25}
+        x1={centerX + halfIntersectionWidth + 25}
         y1={centerY}
-        x2={centerX + halfIntersection + 25}
+        x2={centerX + halfIntersectionWidth + 25}
         y2={centerY + ewRoadWidth / 2 - 5}
         stroke="white"
         strokeWidth={4}
       />
       {/* West approach */}
       <line
-        x1={centerX - halfIntersection - 25}
+        x1={centerX - halfIntersectionWidth - 25}
         y1={centerY - ewRoadWidth / 2 + 5}
-        x2={centerX - halfIntersection - 25}
+        x2={centerX - halfIntersectionWidth - 25}
         y2={centerY}
         stroke="white"
         strokeWidth={4}

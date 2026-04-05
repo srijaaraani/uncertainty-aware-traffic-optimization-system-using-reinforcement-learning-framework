@@ -48,6 +48,8 @@ export default function Index() {
     dqnMetrics,
     trainDQNAgent,
     lastObservationRef,
+    hasSimulationBeenStarted,
+    simulationSessionId,
   } = useSimulation();
 
   // Sensor noise configuration state
@@ -215,36 +217,26 @@ export default function Index() {
   return (
     <div className="min-h-screen w-screen bg-gradient-to-br from-background to-muted flex flex-col p-4 overflow-x-hidden">
       {/* Main Content - Responsive Dashboard */}
-      <main className="flex-1 flex flex-col gap-4 xl:flex-row">
-        {/* Left Block – Simulation + Metrics */}
-        <div className="w-full xl:w-1/2 flex flex-col gap-4 overflow-visible">
-          {/* Simulation Panel – always square and prominent */}
-          <section className="relative bg-card rounded-xl border border-border shadow-sm p-4 flex justify-center items-center">
-            {/* Mobile: control panel toggle button overlay */}
-            <button
-              type="button"
-              className="xl:hidden absolute top-4 right-4 z-20 inline-flex items-center justify-center rounded-full bg-black/60 text-white p-2 shadow-md hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary"
-              onClick={() => setIsMobileControlOpen(true)}
-              aria-label="Open control panel"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-
-            <div className="w-full max-w-3xl">
-              <div className="relative w-full aspect-square">
-                <IntersectionView
-                  vehicles={vehicles}
-                  signalState={signalState}
-                  config={config}
-                  elapsedTimeSeconds={elapsedTimeSeconds}
-                  agentEnabled={agentEnabled}
-                />
-              </div>
+      <main className="flex-1 flex flex-col gap-4">
+        {/* Simulation Panel (full width rectangle) */}
+        <section className="relative bg-card rounded-xl border border-border shadow-sm p-4 flex justify-center items-center">
+          <div className="w-full">
+            <div className="relative w-full h-[70vh] sm:h-[75vh] md:h-[80vh] lg:h-[85vh]">
+              <IntersectionView
+                vehicles={vehicles}
+                signalState={signalState}
+                config={config}
+                elapsedTimeSeconds={elapsedTimeSeconds}
+                agentEnabled={agentEnabled}
+              />
             </div>
-          </section>
+          </div>
+        </section>
 
+        {/* Metrics + Control panels side-by-side */}
+        <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {/* Metrics Panel */}
-          <section className="flex-1 min-h-[220px] overflow-auto custom-scrollbar bg-card rounded-xl border border-border shadow-sm p-4 flex flex-col">
+          <div className="min-h-[220px] overflow-auto custom-scrollbar bg-card rounded-xl border border-border shadow-sm p-4 flex flex-col">
             <div className="flex-1 overflow-auto custom-scrollbar">
               <MetricsDisplay
                 vehicles={vehicles}
@@ -255,61 +247,63 @@ export default function Index() {
                 noiseConfig={effectiveNoiseConfig}
                 agentEnabled={agentEnabled}
                 onNoisyObservationUpdate={setLastAgentObservation}
+                hasSimulationBeenStarted={hasSimulationBeenStarted}
+                simulationSessionId={simulationSessionId}
               />
             </div>
-          </section>
-        </div>
-
-        {/* Right Block – Control Panel (stacks below on small screens) */}
-        <aside className="hidden xl:flex xl:w-1/2 flex-col overflow-auto bg-card rounded-xl border border-border shadow-sm p-4 xl:p-6 custom-scrollbar">
-          <div className="max-w-3xl mx-auto w-full">
-            <header className="mb-4 xl:mb-6">
-              <h1 className="text-xl xl:text-2xl font-bold text-foreground">
-                Traffic Signal Control
-              </h1>
-              <p className="text-xs xl:text-sm text-muted-foreground mt-1">
-                Uncertainty-Aware DQN Simulation Dashboard
-              </p>
-            </header>
-
-            {dqnMode && agentEnabled && (
-              <div className="mb-4 xl:mb-6">
-                <QValueDisplay
-                  decision={lastQValueDecision}
-                  qValueHistory={qValueHistory}
-                />
-              </div>
-            )}
-
-            <ControlPanel
-              isRunning={isRunning}
-              signalState={signalState}
-              vehicleCounts={vehicleCounts}
-              config={config}
-              noiseConfig={noiseConfig}
-              noiseEnabled={noiseEnabled}
-              agentEnabled={agentEnabled}
-              dqnMode={dqnMode}
-              dqnMetrics={dqnMetrics}
-              onStart={start}
-              onPause={pause}
-              onReset={handleReset}
-              onSignalChange={changeSignal}
-              onTrafficRandomnessChange={setTrafficRandomness}
-              onLaneConfigChange={setLaneConfig}
-              onNoiseConfigChange={setNoiseConfig}
-              onNoiseEnabledChange={setNoiseEnabled}
-              onAgentEnabledChange={enableAgent}
-              onDqnModeChange={setDqnModeEnabled}
-            />
-
-            <footer className="mt-6 xl:mt-8 text-center pb-2 xl:pb-4 opacity-60">
-              <p className="text-[10px] xl:text-xs text-muted-foreground">
-                Adaptive Traffic Control System • Final Project
-              </p>
-            </footer>
           </div>
-        </aside>
+
+          {/* Control Panel */}
+          <div className="overflow-auto custom-scrollbar bg-card rounded-xl border border-border shadow-sm p-4">
+            <div className="max-w-3xl mx-auto w-full">
+              <header className="mb-4">
+                <h1 className="text-xl font-bold text-foreground">
+                  Traffic Signal Control
+                </h1>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Uncertainty-Aware DQN Simulation Dashboard
+                </p>
+              </header>
+
+              {dqnMode && agentEnabled && (
+                <div className="mb-4">
+                  <QValueDisplay
+                    decision={lastQValueDecision}
+                    qValueHistory={qValueHistory}
+                  />
+                </div>
+              )}
+
+              <ControlPanel
+                isRunning={isRunning}
+                signalState={signalState}
+                vehicleCounts={vehicleCounts}
+                config={config}
+                noiseConfig={noiseConfig}
+                noiseEnabled={noiseEnabled}
+                agentEnabled={agentEnabled}
+                dqnMode={dqnMode}
+                dqnMetrics={dqnMetrics}
+                onStart={start}
+                onPause={pause}
+                onReset={handleReset}
+                onSignalChange={changeSignal}
+                onTrafficRandomnessChange={setTrafficRandomness}
+                onLaneConfigChange={setLaneConfig}
+                onNoiseConfigChange={setNoiseConfig}
+                onNoiseEnabledChange={setNoiseEnabled}
+                onAgentEnabledChange={enableAgent}
+                onDqnModeChange={setDqnModeEnabled}
+              />
+
+              <footer className="mt-6 text-center pb-2 opacity-60">
+                <p className="text-[10px] text-muted-foreground">
+                  Adaptive Traffic Control System • Final Project
+                </p>
+              </footer>
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* Mobile control panel overlay (covers simulation area) */}

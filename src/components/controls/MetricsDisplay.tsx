@@ -31,6 +31,8 @@ interface MetricsDisplayProps {
   signalState: TrafficLightState;
   noiseConfig: SensorNoiseConfig;
   agentEnabled?: boolean;
+  hasSimulationBeenStarted: boolean;
+  simulationSessionId: number;
   onNoisyObservationUpdate?: (observation: any) => void;
 }
 
@@ -149,12 +151,21 @@ export function MetricsDisplay({
   signalState,
   noiseConfig,
   agentEnabled,
+  hasSimulationBeenStarted,
+  simulationSessionId,
   onNoisyObservationUpdate,
 }: MetricsDisplayProps) {
   const [metrics, setMetrics] = useState<SimulationMetrics | null>(null);
   const [trueState, setTrueState] = useState<ReturnType<typeof getEnvironmentState> | null>(null);
   const [noisyState, setNoisyState] = useState<ReturnType<typeof applySensorNoise> | null>(null);
   const [samplingKey, setSamplingKey] = useState(0);
+
+  // Reset metrics when a new simulation session starts (after reset)
+  useEffect(() => {
+    setMetrics(null);
+    setTrueState(null);
+    setNoisyState(null);
+  }, [simulationSessionId]);
 
   // Update metrics periodically
   useEffect(() => {
@@ -273,7 +284,13 @@ export function MetricsDisplay({
     // This prevents any changes to the displayed metrics while paused
   }, [isRunning, trueState]);
 
+  if (!hasSimulationBeenStarted) {
+    // Don't render metrics before the first run starts
+    return null;
+  }
+
   if (!metrics || !trueState || !noisyState) {
+    // During first seconds of run this might still be loading; avoid empty placeholder.
     return null;
   }
 

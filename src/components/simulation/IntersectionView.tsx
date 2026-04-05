@@ -67,13 +67,23 @@ export function IntersectionView({
   // Calculate road widths
   const nsLanes = Math.max(laneConfig.north, laneConfig.south);
   const ewLanes = Math.max(laneConfig.east, laneConfig.west);
-  const nsRoadWidth = nsLanes * roadWidth * 2;
+
+  // NS road width set by request to match EW width in UI
+  const nsRoadWidth = ewLanes * roadWidth * 2;
   const ewRoadWidth = ewLanes * roadWidth * 2;
+
+  // world base widths in simulation coords (600x600)
+  const nsWorldRoadWidth = nsLanes * roadWidth * 2;
+  const ewWorldRoadWidth = ewLanes * roadWidth * 2;
 
   // Traffic light positions (at corners of intersection)
   const lightOffset = 30;
   const centerX = dimensions.width / 2;
   const centerY = dimensions.height / 2;
+
+  // World scaling from internal 600x600 sim coordinates to actual container
+  const worldScaleX = dimensions.width / 600;
+  const worldScaleY = dimensions.height / 600;
 
   return (
     <div
@@ -84,7 +94,7 @@ export function IntersectionView({
         <div
           className="relative w-full h-full"
         >
-          {/* Road infrastructure */}
+          {/* Road infrastructure (scaled to container) */}
           <RoadView
             config={config}
             width={dimensions.width}
@@ -156,19 +166,28 @@ export function IntersectionView({
             />
           </div>
 
-          {/* Vehicles - Updated to use dynamic centering */}
-          {vehicles.map((vehicle) => (
-            <VehicleView
-              key={vehicle.id}
-              vehicle={{
-                ...vehicle,
-                position: {
-                  x: centerX + (vehicle.position.x - 300), // Adjusted relative to original 600px center
-                  y: centerY + (vehicle.position.y - 300),
-                }
-              }}
-            />
-          ))}
+          {/* Vehicles - map internal 600-unit simulation coordinates to actual container dimensions */}
+          {vehicles.map((vehicle) => {
+            const normalizedX = (vehicle.position.x - 300) / (nsWorldRoadWidth / 2);
+            const normalizedY = (vehicle.position.y - 300) / (ewWorldRoadWidth / 2);
+
+            const mappedX = centerX + normalizedX * (nsRoadWidth / 2);
+            const mappedY = centerY + normalizedY * (ewRoadWidth / 2);
+
+            const position = vehicle.direction === 'north' || vehicle.direction === 'south'
+              ? { x: mappedX, y: vehicle.position.y * worldScaleY }
+              : { x: vehicle.position.x * worldScaleX, y: mappedY };
+
+            return (
+              <VehicleView
+                key={vehicle.id}
+                vehicle={{
+                  ...vehicle,
+                  position,
+                }}
+              />
+            );
+          })}
 
           {/* Direction labels */}
           <div className="absolute top-4 left-1/2 -translate-x-1/2 text-xs font-bold text-foreground/40 bg-background/20 px-2 py-0.5 rounded border border-foreground/10 uppercase tracking-widest">
