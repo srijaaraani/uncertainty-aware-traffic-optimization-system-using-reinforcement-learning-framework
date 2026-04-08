@@ -20,7 +20,9 @@ import { trafficSignalAgent, AgentObservation, SignalPhase, AgentAction } from '
 import { signalController } from '@/corelogic/signalController';
 import { dqnAgent, QValueDecision } from '@/corelogic/dqnAgent';
 import { QValueDisplay } from '@/components/controls/QValueDisplay';
-import { Settings, X } from 'lucide-react';
+import { Settings, X, Play, Pause, RotateCcw, ArrowLeftRight, Bot, Filter } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
 
 export default function Index() {
   const {
@@ -78,6 +80,41 @@ export default function Index() {
   // Mobile control panel overlay state
   const [isMobileControlOpen, setIsMobileControlOpen] = useState(false);
 
+  // Simulation Filter Overlay state
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Dynamic virtual dimensions based on aspect ratio to ensure edge-to-edge spawning.
+  // We initialize with a function to capture the correct dimensions on the very first render.
+  const [virtualDimensions, setVirtualDimensions] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const ratio = window.innerWidth / window.innerHeight;
+      return {
+        width: Math.max(600, ratio * 600),
+        height: 600
+      };
+    }
+    return { width: 600, height: 600 };
+  });
+
+  React.useEffect(() => {
+    const updateDimensions = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const ratio = width / height;
+      
+      // We keep virtual height at 600 units and scale width proportionally
+      setVirtualDimensions({
+        width: Math.max(600, ratio * 600),
+        height: 600
+      });
+    };
+
+    window.addEventListener('resize', updateDimensions);
+    updateDimensions(); // Initial call
+
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
+
   const handleVehicleSpawned = useCallback((direction: Direction) => {
     incrementVehicleCount(direction);
   }, [incrementVehicleCount]);
@@ -86,6 +123,8 @@ export default function Index() {
     config,
     signalState,
     isRunning,
+    virtualWidth: virtualDimensions.width,
+    virtualHeight: virtualDimensions.height,
     onVehicleSpawned: handleVehicleSpawned,
   });
 
@@ -215,26 +254,203 @@ export default function Index() {
   }, [isRunning, agentEnabled]);
 
   return (
-    <div className="min-h-screen w-screen bg-gradient-to-br from-background to-muted flex flex-col p-4 overflow-x-hidden">
+    <div className="min-h-screen w-full bg-gradient-to-br from-background to-muted flex flex-col overflow-x-hidden">
+      {/* Global Fixed Overlays (Navbar Style) */}
+      
+      {/* 1. Mechanism Mode Indicator - Fixed Top Left */}
+      <div className="fixed top-6 left-6 z-50">
+        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/90 backdrop-blur-xl border border-border shadow-xl ring-1 ring-black/5">
+          <div className={`w-2 h-2 rounded-full ${agentEnabled ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-900">
+            {!agentEnabled ? 'MANUAL' : (dqnMode ? 'deterministic learning model' : 'Automatic rule-based')}
+          </span>
+        </div>
+      </div>
+
+      {/* 2. Simulation Overlay Controls - Fixed Top Center */}
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 flex items-center gap-3 z-50">
+        {/* Manual Controls Toolbar */}
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-white border border-border shadow-xl transition-all hover:bg-slate-50 group">
+          <button
+            onClick={() => changeSignal(signalState.NS === 'green' ? 'EW' : 'NS')}
+            disabled={agentEnabled}
+            className={`p-2.5 rounded-xl transition-all active:scale-90 ${agentEnabled ? 'opacity-20 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-900 hover:text-blue-600'}`}
+            title="Switch Signal Direction"
+            aria-label="Switch Signal Direction"
+          >
+            <ArrowLeftRight className="w-5 h-5" />
+          </button>
+          <div className="w-px h-4 bg-border/50 mx-1" />
+          <button
+            onClick={start}
+            disabled={isRunning}
+            className={`p-2.5 rounded-xl transition-all active:scale-90 ${isRunning ? 'opacity-20 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-900 hover:text-green-600'}`}
+            title="Start Simulation"
+            aria-label="Start Simulation"
+          >
+            <Play className="w-5 h-5 fill-current" />
+          </button>
+          <button
+            onClick={pause}
+            disabled={!isRunning}
+            className={`p-2.5 rounded-xl transition-all active:scale-90 ${!isRunning ? 'opacity-20 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-900 hover:text-yellow-600'}`}
+            title="Pause Simulation"
+            aria-label="Pause Simulation"
+          >
+            <Pause className="w-5 h-5" />
+          </button>
+          <div className="w-px h-4 bg-border/50 mx-1" />
+          <button
+            onClick={handleReset}
+            className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-900 hover:text-red-600 transition-all active:scale-90"
+            title="Restart Simulation"
+            aria-label="Restart Simulation"
+          >
+            <RotateCcw className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Automatic Agent Toggle (Gear) */}
+        <button
+          onClick={() => enableAgent(!agentEnabled)}
+          className={`flex items-center justify-center p-3 rounded-2xl border shadow-xl transition-all active:scale-90 ${
+            agentEnabled 
+              ? 'bg-slate-900 border-slate-900 text-white shadow-slate-200' 
+              : 'bg-white border-border text-slate-900 hover:bg-slate-50 hover:text-blue-600'
+          }`}
+          title={agentEnabled ? "Disable Automatic Agent" : "Enable Automatic Agent"}
+          aria-label="Toggle Automatic Agent"
+        >
+          <Settings className={`w-6 h-6 ${agentEnabled ? 'animate-spin-slow' : ''}`} />
+        </button>
+
+        {/* DQN Learning Mode Toggle (Bot) */}
+        <button
+          onClick={() => setDqnModeEnabled(!dqnMode)}
+          disabled={!agentEnabled}
+          className={`flex items-center justify-center p-3 rounded-2xl border shadow-xl transition-all active:scale-90 ${
+            !agentEnabled 
+              ? 'opacity-30 cursor-not-allowed bg-white border-border text-slate-400' 
+              : dqnMode 
+                ? 'bg-indigo-600 border-indigo-600 text-white shadow-indigo-200' 
+                : 'bg-white border-border text-slate-900 hover:bg-slate-50 hover:text-indigo-600'
+          }`}
+          title={!agentEnabled ? "Enable Automatic Agent to use DQN Learning" : (dqnMode ? "Disable DQN Learning" : "Enable DQN Learning")}
+          aria-label="Toggle DQN Learning"
+        >
+          <Bot className={`w-6 h-6 ${dqnMode && agentEnabled ? 'animate-pulse' : ''}`} />
+        </button>
+      </div>
+
+      {/* Filter Settings Toggle - Fixed Top Right */}
+      {isFilterOpen && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setIsFilterOpen(false)} 
+        />
+      )}
+      
+      <div className="fixed top-6 right-6 z-50">
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsFilterOpen(!isFilterOpen);
+            }}
+            className={`flex items-center justify-center p-3 rounded-2xl border shadow-xl transition-all active:scale-90 ${
+              isFilterOpen 
+                ? 'bg-blue-600 border-blue-600 text-white shadow-blue-200' 
+                : 'bg-white border-border text-slate-900 hover:bg-slate-50 hover:text-blue-600'
+            }`}
+            title="Traffic & Sensor Settings"
+            aria-label="Toggle Settings"
+          >
+            <Filter className="w-6 h-6" />
+          </button>
+          
+          {isFilterOpen && (
+            <div 
+              className="absolute top-16 right-0 w-72 p-4 rounded-2xl bg-white/95 backdrop-blur-xl border border-border shadow-2xl z-50 animate-in fade-in slide-in-from-top-4 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="space-y-5">
+                <header className="flex items-center justify-between mb-1">
+                  <h3 className="text-sm font-bold text-slate-900">Environment Setup</h3>
+                  <button onClick={() => setIsFilterOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </header>
+                
+                {/* Traffic Randomness */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs font-semibold text-slate-700">Traffic Randomness</Label>
+                    <span className="text-xs font-mono bg-blue-50 px-2 py-0.5 rounded text-blue-700">{(config.trafficRandomness * 100).toFixed(0)}%</span>
+                  </div>
+                  <Slider 
+                    value={[config.trafficRandomness]} 
+                    min={0} max={1} step={0.01} 
+                    onValueChange={(val) => setTrafficRandomness(val[0])}
+                  />
+                </div>
+
+                {/* Queue Noise */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs font-semibold text-slate-700">Queue Length Noise</Label>
+                    <span className="text-xs font-mono bg-blue-50 px-2 py-0.5 rounded text-blue-700">±{noiseConfig.queueLengthNoise}</span>
+                  </div>
+                  <Slider 
+                    value={[noiseConfig.queueLengthNoise]} 
+                    min={0} max={10} step={1} 
+                    onValueChange={(val) => setNoiseConfig({...noiseConfig, queueLengthNoise: val[0]})}
+                  />
+                </div>
+
+                {/* Waiting Time Noise */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs font-semibold text-slate-700">Wait Time Noise</Label>
+                    <span className="text-xs font-mono bg-blue-50 px-2 py-0.5 rounded text-blue-700">{(noiseConfig.avgWaitingTimeNoise * 100).toFixed(0)}%</span>
+                  </div>
+                  <Slider 
+                    value={[noiseConfig.avgWaitingTimeNoise]} 
+                    min={0} max={0.5} step={0.01} 
+                    onValueChange={(val) => setNoiseConfig({...noiseConfig, avgWaitingTimeNoise: val[0]})}
+                  />
+                </div>
+                
+                <div className="pt-2 border-t border-slate-100 italic text-[10px] text-slate-400 text-center">
+                  Simulates real-world sensor uncertainty
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Main Content - Responsive Dashboard */}
-      <main className="flex-1 flex flex-col gap-4">
-        {/* Simulation Panel (full width rectangle) */}
-        <section className="relative bg-card rounded-xl border border-border shadow-sm p-4 flex justify-center items-center">
-          <div className="w-full">
-            <div className="relative w-full h-[70vh] sm:h-[75vh] md:h-[80vh] lg:h-[85vh]">
+      <main className="flex-1 flex flex-col w-full">
+        {/* Simulation Panel (full height/width rectangle) */}
+        <section className="relative bg-card border-b border-border shadow-sm flex justify-center items-center w-full h-screen">
+          <div className="w-full h-full">
+            <div className="relative w-full h-full">
               <IntersectionView
                 vehicles={vehicles}
                 signalState={signalState}
                 config={config}
                 elapsedTimeSeconds={elapsedTimeSeconds}
                 agentEnabled={agentEnabled}
+                virtualWidth={virtualDimensions.width}
+                virtualHeight={virtualDimensions.height}
               />
             </div>
           </div>
         </section>
 
-        {/* Metrics + Control panels side-by-side */}
-        <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {/* Metrics + Control panels side-by-side - Constrained for readability */}
+        <section className="max-w-7xl mx-auto w-full px-4 pb-8">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {/* Metrics Panel */}
           <div className="min-h-[220px] overflow-auto custom-scrollbar bg-card rounded-xl border border-border shadow-sm p-4 flex flex-col">
             <div className="flex-1 overflow-auto custom-scrollbar">
@@ -256,15 +472,6 @@ export default function Index() {
           {/* Control Panel */}
           <div className="overflow-auto custom-scrollbar bg-card rounded-xl border border-border shadow-sm p-4">
             <div className="max-w-3xl mx-auto w-full">
-              <header className="mb-4">
-                <h1 className="text-xl font-bold text-foreground">
-                  Traffic Signal Control
-                </h1>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Uncertainty-Aware DQN Simulation Dashboard
-                </p>
-              </header>
-
               {dqnMode && agentEnabled && (
                 <div className="mb-4">
                   <QValueDisplay
@@ -289,7 +496,6 @@ export default function Index() {
                 onReset={handleReset}
                 onSignalChange={changeSignal}
                 onTrafficRandomnessChange={setTrafficRandomness}
-                onLaneConfigChange={setLaneConfig}
                 onNoiseConfigChange={setNoiseConfig}
                 onNoiseEnabledChange={setNoiseEnabled}
                 onAgentEnabledChange={enableAgent}
@@ -303,7 +509,8 @@ export default function Index() {
               </footer>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
       </main>
 
       {/* Mobile control panel overlay (covers simulation area) */}
@@ -337,7 +544,6 @@ export default function Index() {
                   onReset={handleReset}
                   onSignalChange={changeSignal}
                   onTrafficRandomnessChange={setTrafficRandomness}
-                  onLaneConfigChange={setLaneConfig}
                   onNoiseConfigChange={setNoiseConfig}
                   onNoiseEnabledChange={setNoiseEnabled}
                   onAgentEnabledChange={enableAgent}

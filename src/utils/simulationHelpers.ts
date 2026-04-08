@@ -91,29 +91,29 @@ export function getSpawnPosition(
   direction: Direction,
   lane: number,
   config: SimulationConfig,
-  canvasSize: number
+  virtualWidth: number = 600,
+  virtualHeight: number = 600
 ): Position {
-  const centerX = canvasSize / 2;
-  const centerY = canvasSize / 2;
+  const simCenter = 300; // Fixed simulation center
   const laneWidth = config.roadWidth;
-  const halfIntersection = config.intersectionSize / 2;
 
   // Calculate lane offset from center line
   const laneOffset = (lane + 0.5) * laneWidth;
+  const buffer = 80; // Distance beyond the visual edge to spawn
 
   switch (direction) {
     case 'north':
       // Spawns at top, travels south (uses right side of road)
-      return { x: centerX + laneOffset, y: -60 };
+      return { x: simCenter + laneOffset, y: simCenter - virtualHeight / 2 - buffer };
     case 'south':
       // Spawns at bottom, travels north (uses right side of road)
-      return { x: centerX - laneOffset, y: canvasSize + 60 };
+      return { x: simCenter - laneOffset, y: simCenter + virtualHeight / 2 + buffer };
     case 'east':
       // Spawns at right, travels west (uses bottom side of road)
-      return { x: canvasSize + 60, y: centerY + laneOffset };
+      return { x: simCenter + virtualWidth / 2 + buffer, y: simCenter + laneOffset };
     case 'west':
       // Spawns at left, travels east (uses top side of road)
-      return { x: -60, y: centerY - laneOffset };
+      return { x: simCenter - virtualWidth / 2 - buffer, y: simCenter - laneOffset };
   }
 }
 
@@ -180,13 +180,19 @@ export function hasVehiclePassedStopLine(
 
 export function isVehicleOffScreen(
   vehicle: Vehicle,
-  canvasSize: number
+  virtualWidth: number = 600,
+  virtualHeight: number = 600
 ): boolean {
-  const buffer = 100;
+  const buffer = 150;
+  const simCenter = 300;
   const { x, y } = vehicle.position;
 
-  return x < -buffer || x > canvasSize + buffer ||
-    y < -buffer || y > canvasSize + buffer;
+  const minX = simCenter - virtualWidth / 2 - buffer;
+  const maxX = simCenter + virtualWidth / 2 + buffer;
+  const minY = simCenter - virtualHeight / 2 - buffer;
+  const maxY = simCenter + virtualHeight / 2 + buffer;
+
+  return x < minX || x > maxX || y < minY || y > maxY;
 }
 
 // ============================================

@@ -11,22 +11,17 @@ import React, { useState } from 'react';
 import {
   SimulationState,
   SignalDirection,
-  LaneConfig,
 } from '@/types/simulation';
-import { SimulationControls } from './SimulationControls';
-import { SignalOverride } from './SignalOverride';
-import { TrafficRandomnessControl } from './TrafficRandomnessControl';
 import { TrafficPatternDisplay } from './TrafficPatternDisplay';
 import { LaneConfigToggle } from './LaneConfigToggle';
 import { VehicleCounters } from './VehicleCounters';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Settings, Activity, Zap } from 'lucide-react';
+import { Settings, Activity, Zap, Cpu } from 'lucide-react';
 import { SensorNoiseConfig } from '@/corelogic/probabilisticSensorModel';
 import { TrainingMetrics } from '@/corelogic/dqnAgent';
-import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 
 interface ControlPanelProps {
   isRunning: boolean;
@@ -43,7 +38,6 @@ interface ControlPanelProps {
   onReset: () => void;
   onSignalChange: (direction: SignalDirection) => void;
   onTrafficRandomnessChange: (randomness: number) => void;
-  onLaneConfigChange: (config: LaneConfig) => void;
   onNoiseConfigChange: (config: SensorNoiseConfig) => void;
   onNoiseEnabledChange: (enabled: boolean) => void;
   onAgentEnabledChange: (enabled: boolean) => void;
@@ -65,7 +59,6 @@ export function ControlPanel({
   onReset,
   onSignalChange,
   onTrafficRandomnessChange,
-  onLaneConfigChange,
   onNoiseConfigChange,
   onNoiseEnabledChange,
   onAgentEnabledChange,
@@ -76,229 +69,126 @@ export function ControlPanel({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Settings className="w-5 h-5" />
-          Control Panel
+          Simulation Metrics
         </CardTitle>
       </CardHeader>
 
       <CardContent className="space-y-5">
-        {/* Status Indicator */}
-        <div className="flex items-center gap-2">
-          <div
-            className={`w-2 h-2 rounded-full ${isRunning ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
-              }`}
-          />
-          <span className="text-sm text-gray-600">
-            {isRunning ? 'Simulation Running' : 'Simulation Paused'}
-          </span>
-        </div>
-
-        {/* Simulation Controls */}
-        <SimulationControls
-          isRunning={isRunning}
-          onStart={onStart}
-          onPause={onPause}
-          onReset={onReset}
-        />
-
-        <Separator />
-
-        {/* Automatic Agent Control */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-purple-600" />
-              <Label className="text-sm font-semibold text-foreground">
-                Automatic Agent Control
-              </Label>
-            </div>
-            <Switch
-              checked={agentEnabled}
-              onCheckedChange={onAgentEnabledChange}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                }`}
             />
+            <span className="text-sm font-medium text-slate-700">
+              {isRunning ? 'System Online' : 'System Standby'}
+            </span>
           </div>
-
-          {agentEnabled && (
-            <div className="ml-6 space-y-2 pt-2 border-l-2 border-purple-300 pl-3">
-              {/* DQN Mode Toggle */}
-              {onDqnModeChange && (
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    DQN Learning Mode
-                  </Label>
-                  <Switch
-                    checked={dqnMode}
-                    onCheckedChange={onDqnModeChange}
-                    disabled={!agentEnabled}
-                  />
-                </div>
-              )}
-
-              <div className="text-xs text-purple-700 bg-purple-50 p-2 rounded border border-purple-200">
-                <p>
-                  <strong>{dqnMode ? 'DQN Agent Active' : 'Rule-Based Agent Active'}</strong><br />
-                  • Observes: Noisy queue length & waiting time<br />
-                  • Decides: Which direction gets green<br />
-                  {dqnMode ? (
-                    <>
-                      • Policy: Deep Q-Network (learning)<br />
-                      • Training: Experience replay + target network
-                    </>
-                  ) : (
-                    <>
-                      • Policy: Give green to more congested direction<br />
-                      • Manual signal control is disabled
-                    </>
-                  )}
-                </p>
-              </div>
-
-              {/* DQN Metrics Display */}
-              {dqnMode && dqnMetrics && (
-                <div className="text-xs bg-indigo-50 p-2 rounded border border-indigo-200 space-y-1">
-                  <div className="font-semibold text-indigo-900 mb-1">Learning Metrics:</div>
-                  <div className="grid grid-cols-2 gap-1 text-indigo-700">
-                    <span>Epsilon (ε):</span>
-                    <span className="font-mono">{dqnMetrics.epsilon.toFixed(3)}</span>
-                    <span>Training Steps:</span>
-                    <span className="font-mono">{dqnMetrics.trainingSteps}</span>
-                    <span>Experiences:</span>
-                    <span className="font-mono">{dqnMetrics.experienceCount}</span>
-                    <span>Loss:</span>
-                    <span className="font-mono">{dqnMetrics.loss.toFixed(4)}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!agentEnabled && (
-            <p className="text-xs text-muted-foreground ml-6 text-gray-500 italic">
-              Manual signal control is active
-            </p>
-          )}
+          <Badge variant={isRunning ? "default" : "secondary"} className={isRunning ? "bg-green-100 text-green-700 border-green-200" : ""}>
+            {isRunning ? 'RUNNING' : 'PAUSED'}
+          </Badge>
         </div>
 
         <Separator />
 
-        {/* Signal Override */}
-        <SignalOverride
-          signalState={signalState}
-          onSignalChange={onSignalChange}
-          disabled={agentEnabled}
-        />
-
-        <Separator />
-
-        {/* Traffic Randomness */}
-        <TrafficRandomnessControl
-          randomness={config.trafficRandomness}
-          onRandomnessChange={onTrafficRandomnessChange}
-        />
-
-        {/* Sensor Noise / Uncertainty Configuration */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-blue-600" />
-              <Label className="text-sm font-semibold text-foreground">
-                Sensor Noise / Uncertainty
-              </Label>
+        {/* Telemetry Summary Table */}
+        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+          {/* Row 1: Headings */}
+          <div className="grid grid-cols-3 bg-slate-50/80 border-b border-slate-200">
+            <div className="p-2.5 text-center flex items-center justify-center gap-1.5 border-r border-slate-200">
+              <Activity className="w-3.5 h-3.5 text-purple-600" />
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Agent Status</span>
             </div>
-            <Switch
-              checked={noiseEnabled}
-              onCheckedChange={onNoiseEnabledChange}
-            />
+            <div className="p-2.5 text-center flex items-center justify-center gap-1.5 border-r border-slate-200">
+              <Zap className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Traffic Dynamics</span>
+            </div>
+            <div className="p-2.5 text-center flex items-center justify-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-blue-600" />
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sensor Uncertainty</span>
+            </div>
           </div>
-
-          {noiseEnabled && (
-            <div className="ml-6 space-y-4 pt-2 border-l-2 border-blue-300 pl-3">
-              {/* Queue Length Noise */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    Queue Length Noise
-                  </Label>
-                  <span className="text-xs font-mono bg-blue-50 px-2 py-0.5 rounded text-blue-700">
-                    ±{Math.round(noiseConfig.queueLengthNoise)} vehicles
-                  </span>
+          
+          {/* Row 2: Values */}
+          <div className="grid grid-cols-3 bg-white min-h-[80px]">
+            {/* Agent Status Value */}
+            <div className="p-4 flex flex-col items-center justify-center gap-2 border-r border-slate-100">
+              <Badge 
+                variant={agentEnabled ? (dqnMode ? "default" : "default") : "outline"} 
+                className={`px-4 py-1.5 text-[10px] font-bold tracking-wider transition-all duration-300 ${
+                  !agentEnabled 
+                    ? "text-slate-400 border-slate-200" 
+                    : dqnMode 
+                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 border-indigo-600" 
+                      : "bg-purple-100 text-purple-700 border-purple-200"
+                }`}
+              >
+                {!agentEnabled ? 'MANUAL' : dqnMode ? 'DQN LEARNING' : 'AUTOMATIC'}
+              </Badge>
+            </div>
+            
+            {/* Traffic Dynamics Value */}
+            <div className="p-4 flex flex-col items-center justify-center gap-1.5 border-r border-slate-100">
+              <div className="flex flex-col gap-1 w-full">
+                <div className="flex justify-between items-center px-2 py-0.5 bg-amber-50/50 rounded border border-amber-100/50">
+                  <span className="text-[9px] font-bold text-amber-500 uppercase">Random</span>
+                  <span className="text-xs font-bold text-amber-700">{(config.trafficRandomness * 100).toFixed(0)}%</span>
                 </div>
-
-                <Slider
-                  value={[noiseConfig.queueLengthNoise]}
-                  onValueChange={(values) => {
-                    onNoiseConfigChange({
-                      ...noiseConfig,
-                      queueLengthNoise: Math.round(values[0]),
-                    });
-                  }}
-                  min={0}
-                  max={10}
-                  step={1}
-                  className="w-full"
-                />
-
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>0</span>
-                  <span>10</span>
+                <div className="flex justify-between items-center px-2 py-0.5 bg-amber-50/50 rounded border border-amber-100/50">
+                  <span className="text-[9px] font-bold text-amber-500 uppercase">Spawn</span>
+                  <span className="text-xs font-bold text-amber-700">{config.spawnRate.toFixed(1)}/s</span>
                 </div>
-              </div>
-
-              {/* Average Waiting Time Noise */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    Waiting Time Noise
-                  </Label>
-                  <span className="text-xs font-mono bg-blue-50 px-2 py-0.5 rounded text-blue-700">
-                    {(noiseConfig.avgWaitingTimeNoise * 100).toFixed(0)}%
-                  </span>
-                </div>
-
-                <Slider
-                  value={[noiseConfig.avgWaitingTimeNoise]}
-                  onValueChange={(values) => {
-                    onNoiseConfigChange({
-                      ...noiseConfig,
-                      avgWaitingTimeNoise: values[0],
-                    });
-                  }}
-                  min={0}
-                  max={0.5}
-                  step={0.01}
-                  className="w-full"
-                />
-
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>0%</span>
-                  <span>50%</span>
-                </div>
-              </div>
-
-              {/* Note about uncertainty */}
-              <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded border border-blue-200 mt-2">
-                <p>
-                  <strong>Queue Length:</strong> Discrete distribution [v±k]<br />
-                  <strong>Waiting Time:</strong> Normal distribution with σ = value × noise%
-                </p>
               </div>
             </div>
-          )}
-
-          {!noiseEnabled && (
-            <p className="text-xs text-muted-foreground ml-6 text-gray-500 italic">
-              Sensor noise is disabled — using true values
-            </p>
-          )}
+            
+            {/* Sensor Uncertainty Value */}
+            <div className="p-4 flex flex-col items-center justify-center gap-1.5">
+              <div className="flex flex-col gap-1 w-full">
+                <div className="flex justify-between items-center px-2 py-0.5 bg-blue-50/50 rounded border border-blue-100/50">
+                  <span className="text-[9px] font-bold text-blue-400 uppercase">Queue</span>
+                  <span className="text-xs font-bold text-blue-700">±{Math.round(noiseConfig.queueLengthNoise)}</span>
+                </div>
+                <div className="flex justify-between items-center px-2 py-0.5 bg-blue-50/50 rounded border border-blue-100/50">
+                  <span className="text-[9px] font-bold text-blue-400 uppercase">Wait</span>
+                  <span className="text-xs font-bold text-blue-700">{(noiseConfig.avgWaitingTimeNoise * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Extended Telemetry (Conditional) */}
+        {agentEnabled && dqnMode && dqnMetrics && (
+          <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="text-xs bg-indigo-50 p-3 rounded-xl border border-indigo-200 space-y-2 shadow-sm">
+              <div className="flex items-center gap-2 font-bold text-indigo-900 border-b border-indigo-100 pb-1 mb-1">
+                <Cpu className="w-3.5 h-3.5" />
+                DQN Learning Telemetry
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-indigo-700">
+                <div className="flex justify-between border-b border-indigo-100/50 pb-0.5">
+                  <span className="opacity-70">Epsilon (ε):</span>
+                  <span className="font-mono font-bold">{dqnMetrics.epsilon.toFixed(3)}</span>
+                </div>
+                <div className="flex justify-between border-b border-indigo-100/50 pb-0.5">
+                  <span className="opacity-70">Loss:</span>
+                  <span className="font-mono font-bold">{dqnMetrics.loss.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="opacity-70">Training Steps:</span>
+                  <span className="font-mono font-bold">{dqnMetrics.trainingSteps}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="opacity-70">Experience Count:</span>
+                  <span className="font-mono font-bold">{dqnMetrics.experienceCount}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Traffic Pattern Display */}
         <TrafficPatternDisplay burstState={config.trafficBurstState} />
-
-        {/* Lane Configuration */}
-        <LaneConfigToggle
-          config={config.laneConfig}
-          onChange={onLaneConfigChange}
-        />
 
         <Separator />
 

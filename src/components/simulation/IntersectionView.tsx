@@ -26,6 +26,8 @@ interface IntersectionViewProps {
   config: SimulationConfig;
   elapsedTimeSeconds?: number;
   agentEnabled?: boolean;
+  virtualWidth?: number;
+  virtualHeight?: number;
 }
 
 const CANVAS_SIZE = 600;
@@ -36,6 +38,8 @@ export function IntersectionView({
   config,
   elapsedTimeSeconds = 0,
   agentEnabled = false,
+  virtualWidth = 600,
+  virtualHeight = 600,
 }: IntersectionViewProps) {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -101,13 +105,37 @@ export function IntersectionView({
             height={dimensions.height}
           />
 
-          {/* Traffic Lights */}
-          {/* North-West corner (controls southbound / westbound) */}
+          {/* Vehicles - map internal simulation coordinates to actual container dimensions */}
+          {vehicles.map((vehicle) => {
+            // Use unified scale (pixels per sim unit) for both directions
+            // We use the pixel height as the baseline since virtualHeight is fixed at 600
+            const unifiedScale = dimensions.height / virtualHeight;
+            
+            // Re-calculate mapping to be center-relative and uniform
+            // Simulation center is always 300, 300
+            const position = {
+              x: centerX + (vehicle.position.x - 300) * unifiedScale,
+              y: centerY + (vehicle.position.y - 300) * unifiedScale,
+            };
+
+            return (
+              <VehicleView
+                key={vehicle.id}
+                vehicle={{
+                  ...vehicle,
+                  position,
+                }}
+              />
+            );
+          })}
+
+          {/* Traffic Lights - Symmetrically placed at corners - Rendered after vehicles for top-layer visibility */}
+          {/* North-West (controls southbound / westbound) */}
           <div
-            className="absolute"
+            className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
             style={{
-              left: centerX - nsRoadWidth / 2 - lightOffset - 20,
-              top: centerY - ewRoadWidth / 2 - lightOffset - 20,
+              left: centerX - nsRoadWidth / 2 - lightOffset,
+              top: centerY - ewRoadWidth / 2 - lightOffset,
             }}
           >
             <TrafficLightView
@@ -118,12 +146,12 @@ export function IntersectionView({
             />
           </div>
 
-          {/* North-East corner (controls southbound / eastbound) */}
+          {/* North-East (controls southbound / eastbound) */}
           <div
-            className="absolute"
+            className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
             style={{
               left: centerX + nsRoadWidth / 2 + lightOffset,
-              top: centerY - ewRoadWidth / 2 - lightOffset - 20,
+              top: centerY - ewRoadWidth / 2 - lightOffset,
             }}
           >
             <TrafficLightView
@@ -134,9 +162,9 @@ export function IntersectionView({
             />
           </div>
 
-          {/* South-East corner (controls northbound / eastbound) */}
+          {/* South-East (controls northbound / eastbound) */}
           <div
-            className="absolute"
+            className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
             style={{
               left: centerX + nsRoadWidth / 2 + lightOffset,
               top: centerY + ewRoadWidth / 2 + lightOffset,
@@ -150,11 +178,11 @@ export function IntersectionView({
             />
           </div>
 
-          {/* South-West corner (controls northbound / westbound) */}
+          {/* South-West (controls northbound / westbound) */}
           <div
-            className="absolute"
+            className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
             style={{
-              left: centerX - nsRoadWidth / 2 - lightOffset - 20,
+              left: centerX - nsRoadWidth / 2 - lightOffset,
               top: centerY + ewRoadWidth / 2 + lightOffset,
             }}
           >
@@ -166,31 +194,8 @@ export function IntersectionView({
             />
           </div>
 
-          {/* Vehicles - map internal 600-unit simulation coordinates to actual container dimensions */}
-          {vehicles.map((vehicle) => {
-            const normalizedX = (vehicle.position.x - 300) / (nsWorldRoadWidth / 2);
-            const normalizedY = (vehicle.position.y - 300) / (ewWorldRoadWidth / 2);
-
-            const mappedX = centerX + normalizedX * (nsRoadWidth / 2);
-            const mappedY = centerY + normalizedY * (ewRoadWidth / 2);
-
-            const position = vehicle.direction === 'north' || vehicle.direction === 'south'
-              ? { x: mappedX, y: vehicle.position.y * worldScaleY }
-              : { x: vehicle.position.x * worldScaleX, y: mappedY };
-
-            return (
-              <VehicleView
-                key={vehicle.id}
-                vehicle={{
-                  ...vehicle,
-                  position,
-                }}
-              />
-            );
-          })}
-
           {/* Direction labels */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 text-xs font-bold text-foreground/40 bg-background/20 px-2 py-0.5 rounded border border-foreground/10 uppercase tracking-widest">
+          <div className="absolute top-24 left-1/2 -translate-x-1/2 text-xs font-bold text-foreground/40 bg-background/20 px-2 py-0.5 rounded border border-foreground/10 uppercase tracking-widest">
             North
           </div>
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs font-bold text-foreground/40 bg-background/20 px-2 py-0.5 rounded border border-foreground/10 uppercase tracking-widest">

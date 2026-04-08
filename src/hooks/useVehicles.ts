@@ -35,12 +35,22 @@ export interface UseVehiclesOptions {
   config: SimulationConfig;
   signalState: TrafficLightState;
   isRunning: boolean;
+  virtualWidth?: number;
+  virtualHeight?: number;
   onVehicleSpawned?: (direction: Direction) => void;
   onVehicleExited?: (direction: Direction) => void;
 }
 
 export function useVehicles(options: UseVehiclesOptions) {
-  const { config, signalState, isRunning, onVehicleSpawned, onVehicleExited } = options;
+  const { 
+    config, 
+    signalState, 
+    isRunning, 
+    virtualWidth = 600, 
+    virtualHeight = 600,
+    onVehicleSpawned, 
+    onVehicleExited 
+  } = options;
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const animationFrameRef = useRef<number>();
@@ -59,7 +69,7 @@ export function useVehicles(options: UseVehiclesOptions) {
     const numLanes = config.laneConfig[direction];
     const lane = Math.floor(Math.random() * numLanes);
     const vehicleConfig = generateRandomVehicleConfigWithRandomness(config.trafficRandomness);
-    const position = getSpawnPosition(direction, lane, config, CANVAS_SIZE);
+    const position = getSpawnPosition(direction, lane, config, virtualWidth, virtualHeight);
 
     const now = Date.now();
     const newVehicle: Vehicle = {
@@ -132,7 +142,7 @@ export function useVehicles(options: UseVehiclesOptions) {
 
         for (const vehicle of vehiclesInLane) {
           // Check if vehicle should be removed
-          if (isVehicleOffScreen(vehicle, CANVAS_SIZE)) {
+          if (isVehicleOffScreen(vehicle, virtualWidth, virtualHeight)) {
             // Record exit for flow rate calculation
             recordVehicleExit(vehicle.direction, vehicle.lane);
             if (onVehicleExited) {
@@ -142,7 +152,7 @@ export function useVehicles(options: UseVehiclesOptions) {
           }
 
           // 1. Initial stop decision based on traffic light
-          let shouldStop = shouldVehicleStop(vehicle, signalState, config, CANVAS_SIZE);
+          let shouldStop = shouldVehicleStop(vehicle, signalState, config, 600);
 
           // 2. Queuing logic: Stop if too close to the vehicle in front
           if (!shouldStop && frontVehicleInLane) {
@@ -247,7 +257,7 @@ export function useVehicles(options: UseVehiclesOptions) {
           }
 
           // Check if vehicle has passed stop line (entering intersection)
-          const passedStopLine = hasVehiclePassedStopLine(vehicle, config, CANVAS_SIZE);
+          const passedStopLine = hasVehiclePassedStopLine(vehicle, config, 600);
 
           const updatedVehicle: Vehicle = {
             ...vehicle,
