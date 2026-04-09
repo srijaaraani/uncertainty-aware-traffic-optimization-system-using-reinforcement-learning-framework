@@ -113,6 +113,14 @@ export function useSimulation(options: UseSimulationOptions = {}) {
   const [dqnMetrics, setDqnMetrics] = useState<TrainingMetrics | null>(null);
   const lastObservationRef = useRef<AgentObservation | null>(null);
 
+  // Virtual Base State (Analytical Twin)
+  // Maintains a noise-free theoretical model of the traffic state
+  const [virtualBaseState, setVirtualBaseState] = useState({
+    ns: { queueLength: 0, avgWaitingTime: 0, flowRate: 0 },
+    ew: { queueLength: 0, avgWaitingTime: 0, flowRate: 0 },
+    lastUpdate: Date.now()
+  });
+
   // Traffic burst manager
   const burstManagerRef = useRef<TrafficBurstManager>(new TrafficBurstManager());
 
@@ -350,6 +358,43 @@ export function useSimulation(options: UseSimulationOptions = {}) {
     setVehicleCounts(DEFAULT_COUNTS);
   }, []);
 
+  /**
+   * Update virtual base state (Analytical model)
+   * This provides a noise-free comparison point for metrics visualization
+   */
+  useEffect(() => {
+    if (!isRunning) return;
+
+    const interval = setInterval(() => {
+      setVirtualBaseState(prev => {
+        const now = Date.now();
+        const dt = (now - prev.lastUpdate) / 1000; // seconds
+
+        // Parameters for analytical model
+        const spawnRatePerSecond = config.spawnRate / 60;
+        const departureRatePerSecond = 0.5; // Average vehicles cleared per second on green
+
+        // Update North-South Base Model
+        const nsInflow = spawnRatePerSecond * 2; // 2 directions (N, S)
+        const nsOutflow = signalState.NS === 'green' ? departureRatePerSecond : 0;
+        const nextNSQueue = Math.max(0, prev.ns.queueLength + (nsInflow - nsOutflow) * dt);
+
+        // Update East-West Base Model
+        const ewInflow = spawnRatePerSecond * 2; // 2 directions (E, W)
+        const ewOutflow = signalState.EW === 'green' ? departureRatePerSecond : 0;
+        const nextEWQueue = Math.max(0, prev.ew.queueLength + (ewInflow - ewOutflow) * dt);
+
+        return {
+          ns: { queueLength: nextNSQueue, avgWaitingTime: 0, flowRate: config.spawnRate },
+          ew: { queueLength: nextEWQueue, avgWaitingTime: 0, flowRate: config.spawnRate },
+          lastUpdate: now
+        };
+      });
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isRunning, config.spawnRate, signalState]);
+
   // ============================================
   // COMPUTED STATE
   // ============================================
@@ -489,6 +534,8 @@ export function useSimulation(options: UseSimulationOptions = {}) {
     // Run tracking
     hasSimulationBeenStarted,
     simulationSessionId,
+    // Virtual Base State
+    virtualBaseState,
     // Reward computation
     computeAndLogReward,
   };

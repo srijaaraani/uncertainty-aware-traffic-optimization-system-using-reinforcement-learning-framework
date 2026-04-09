@@ -218,17 +218,33 @@ function applyNoiseToDirectionMetrics(
 ): EnvironmentState['ns'] {
   return {
     // Discrete metric: sample from discrete distribution [v-k, ..., v+k]
-    queueLength: sampleDiscreteMetric(metrics.queueLength, noiseConfig.queueLengthNoise),
+    // Note: We sample the 'observed' value based on the 'true' physical value
+    queueLength: {
+      ...metrics.queueLength,
+      observed: sampleDiscreteMetric(metrics.queueLength.true, noiseConfig.queueLengthNoise)
+    },
 
     // Continuous metrics: sample from bounded normal distribution
-    avgWaitingTime: sampleContinuousMetric(metrics.avgWaitingTime, noiseConfig.avgWaitingTimeNoise),
-    maxWaitingTime: sampleContinuousMetric(metrics.maxWaitingTime, noiseConfig.avgWaitingTimeNoise),
+    avgWaitingTime: {
+      ...metrics.avgWaitingTime,
+      observed: sampleContinuousMetric(metrics.avgWaitingTime.true, noiseConfig.avgWaitingTimeNoise)
+    },
+    maxWaitingTime: {
+      ...metrics.maxWaitingTime,
+      observed: sampleContinuousMetric(metrics.maxWaitingTime.true, noiseConfig.avgWaitingTimeNoise)
+    },
 
-    // Flow rate is not modified (not in requirements)
-    flowRate: metrics.flowRate,
+    // Flow rate is not modified (not in requirements), so observed = true
+    flowRate: {
+      ...metrics.flowRate,
+      observed: metrics.flowRate.true
+    },
 
     // Continuous metric: sample from bounded normal distribution
-    avgSpeed: sampleContinuousMetric(metrics.avgSpeed, noiseConfig.avgSpeedNoise),
+    avgSpeed: {
+      ...metrics.avgSpeed,
+      observed: sampleContinuousMetric(metrics.avgSpeed.true, noiseConfig.avgSpeedNoise)
+    },
   };
 }
 

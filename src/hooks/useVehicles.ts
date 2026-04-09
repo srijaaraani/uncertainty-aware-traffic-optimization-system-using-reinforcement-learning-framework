@@ -285,8 +285,8 @@ export function useVehicles(options: UseVehiclesOptions) {
     const spawnInterval = 1000 / config.spawnRate; // ms between spawns
 
     // Apply environment spawn jitter (0-1)
-    // jitterAmount creates variability in the time between spawns
-    const jitterAmount = spawnInterval * (0.8 + config.environmentNoise.spawnJitter * 2.5);
+    // Adds gentle wave-like variation in inter-arrival time: ±10-20% of spawn interval
+    const jitterAmount = spawnInterval * (config.environmentNoise.spawnJitter * 1.5);
 
     DIRECTIONS.forEach((direction) => {
       const lastSpawn = lastSpawnTimeRef.current[direction];
@@ -297,19 +297,19 @@ export function useVehicles(options: UseVehiclesOptions) {
         let spawnProbability = 0.65 + config.trafficRandomness * 0.3;
 
         // Apply directional bias from environment noise
-        // bias range -1 (EW heavy) to 1 (NS heavy)
+        // Realistic: ±25% max probability swing
         const isNS = direction === 'north' || direction === 'south';
         const biasFactor = isNS ? config.environmentNoise.directionalBias : -config.environmentNoise.directionalBias;
-        
-        // Intensity 0.5-1.5 maps to probability multiplier
-        const biasMultiplier = 1 + (biasFactor * 0.5);
-        spawnProbability = Math.max(0.1, Math.min(0.95, spawnProbability * biasMultiplier));
+        const biasMultiplier = 1 + (biasFactor * 0.25); // max ±25%
+        spawnProbability = Math.max(0.3, Math.min(0.95, spawnProbability * biasMultiplier));
 
         // Apply direction-specific burst intensity
+        // Realistic: at most +20% probability during a burst
         if (config.trafficBurstState) {
           const directionIntensity = config.trafficBurstState.directionIntensities[direction];
-          const intensityMultiplier = (directionIntensity - 0.5) * 0.5 + 1;
-          spawnProbability = Math.min(0.95, spawnProbability * intensityMultiplier);
+          // directionIntensity is 0-2; clamp boost to 20% max
+          const intensityBoost = Math.min(0.2, (directionIntensity - 1.0) * 0.2);
+          spawnProbability = Math.min(0.95, spawnProbability + intensityBoost);
         }
 
         if (Math.random() < spawnProbability) {

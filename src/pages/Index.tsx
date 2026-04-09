@@ -54,6 +54,7 @@ export default function Index() {
     lastObservationRef,
     hasSimulationBeenStarted,
     simulationSessionId,
+    virtualBaseState,
   } = useSimulation();
 
   // Training (Observation) noise configuration state
@@ -138,80 +139,76 @@ export default function Index() {
   }, [reset, resetVehicles, resetVehicleCounts]);
 
   /**
-   * Handles automatic agent decision-making based on noisy observations
+   * Handles automatic signal control.
    * 
-   * The decision flow:
-   * 1. If MAX_GREEN_TIME (25s) exceeded without a switch: force switch to prevent starvation
-   * 2. If in decision window (10-25s): agent observes noisy metrics and decides whether to switch or stay
-   * 3. If before 10s: no switching allowed (minimum green time protection)
+   * AUTOMATIC MODE (no DQN):
+   *   Simple fixed-interval rule: switch signal every 6 seconds.
+   *   No agent, no learning, no observations — pure timed switching.
    * 
-   * Decision Window (10-25s):
-   * - Agent continuously observes noisy metrics
-   * - Agent can propose SWITCHING to other direction OR KEEPING current phase
-   * - Switch only occurs if agent explicitly chooses to switch AND controller allows it
-   * - This allows truly conditional (not forced) switching within the decision window
-   * 
-   * DQN Mode:
-   * - Uses DQN agent instead of rule-based agent
-   * - Stores experiences and trains on replay buffer
-   * - Learns optimal policy over time
+   * AUTOMATIC + DQN MODE:
+   *   Uses DQN agent with epsilon-greedy policy and experience replay.
+   *   Stores experiences and trains on replay buffer.
+   *   Decision window (5–15s) enforced by signalController.
    */
   const makeAgentDecision = useCallback(() => {
+    // ─── AUTOMATIC MODE: simple 6-second fixed-interval switching ───────────
+    if (!dqnMode) {
+      const elapsed = signalController.getTimeSinceLastChange();
+      if (elapsed >= 6) {
+        const currentPhase = signalController.getCurrentPhase();
+        const nextPhase: SignalPhase = currentPhase === 'NS' ? 'EW' : 'NS';
+        // applyAgentDecision(force=true) handles both controller update and React state
+        applyAgentDecision(nextPhase, true);
+        console.log(`[Auto] Timed switch → ${nextPhase} at ${elapsed.toFixed(1)}s`);
+      }
+      return;
+    }
+
+    // ─── DQN MODE: full RL decision pipeline ─────────────────────────────────
     // Check if forced switch due to MAX_GREEN_TIME exceeded without a decision window switch
     if (signalController.mustSwitchSignal()) {
       const currentPhase = signalController.getCurrentPhase();
       const forcedPhase: SignalPhase = currentPhase === 'NS' ? 'EW' : 'NS';
       console.log('[SignalController] FORCED switch due to MAX_GREEN_TIME (15s) exceeded without adaptive switch');
       const switchApplied = applyAgentDecision(forcedPhase, true);
-      // Log reward when switch is applied
       if (switchApplied) {
         computeAndLogReward(vehicles, true);
       }
       return;
     }
 
-    // Check if we're in the decision window (10-25 seconds)
+    // Check if we're in the decision window (5-15 seconds)
     if (!signalController.isInDecisionWindow()) {
-      // Outside decision window - no agent decisions allowed
       return;
     }
 
-    // In decision window: agent proposes action based on observations
     if (!lastAgentObservation) {
       return;
     }
 
-    let agentAction: AgentAction;
+    // DQN agent selects action using epsilon-greedy policy with congestion bias
+    const agentAction: AgentAction = dqnAgent.selectAction(lastAgentObservation);
 
-    // Select action based on agent mode (rule-based or DQN)
-    if (dqnMode) {
-      // DQN agent selects action using epsilon-greedy policy
-      agentAction = dqnAgent.selectAction(lastAgentObservation);
-
-      // Capture Q-value decision for display
-      const decision = dqnAgent.getLastDecision();
-      if (decision) {
-        setLastQValueDecision(decision);
-        setQValueHistory(dqnAgent.getQValueHistory());
-      }
-    } else {
-      // Rule-based agent observes ONLY noisy metrics and makes decision
-      agentAction = trafficSignalAgent.decideAction(lastAgentObservation);
+    // Capture Q-value decision for display
+    const decision = dqnAgent.getLastDecision();
+    if (decision) {
+      setLastQValueDecision(decision);
+      setQValueHistory(dqnAgent.getQValueHistory());
     }
 
     // Store previous observation for DQN training
     const previousObservation = lastObservationRef.current;
     lastObservationRef.current = lastAgentObservation;
 
-    // Apply the agent's decision (signal controller will only allow if still in window)
+    // Apply the agent's decision
     const switchApplied = applyAgentDecision(agentAction);
 
-    // Log reward when decision is applied (whether switch or keep)
+    // Compute reward using Traffic State (ground truth)
     const wasSwitched = switchApplied && agentAction !== 'KEEP';
     const rewardComponents = computeAndLogReward(vehicles, wasSwitched);
 
-    // Train DQN agent if in DQN mode and we have a previous observation
-    if (dqnMode && previousObservation && lastAgentObservation) {
+    // Train DQN agent if we have a previous observation
+    if (previousObservation && lastAgentObservation) {
       trainDQNAgent(
         previousObservation,
         agentAction,
@@ -527,6 +524,7 @@ export default function Index() {
                 onNoisyObservationUpdate={setLastAgentObservation}
                 hasSimulationBeenStarted={hasSimulationBeenStarted}
                 simulationSessionId={simulationSessionId}
+                virtualBaseState={virtualBaseState}
               />
             </div>
           </div>

@@ -48,71 +48,66 @@ export function computeReward(
   // WEIGHT PARAMETERS
   // These control the relative importance of each reward component
   // ============================================
-  
+
   // Congestion penalty weights - these dominate the reward
-  const CONGESTION_PENALTY_WEIGHT = -2.0; // Heavily penalize queue buildup
+  const CONGESTION_PENALTY_WEIGHT = -3.5; // Heavily penalize queue buildup
   const MAX_QUEUE_LENGTH = 30; // Reference queue length for normalization
-  
+
   // Waiting time penalty weights
   const WAITING_TIME_PENALTY_WEIGHT = -1.5; // Penalize long waits
   const MAX_WAITING_TIME = 60; // Reference waiting time (seconds) for normalization
-  
+
   // Switching penalty - discourage rapid switching
-  const SWITCHING_PENALTY = -0.5; // Small penalty per switch
-  
+  const SWITCHING_PENALTY = -1.5; // Small penalty per switch
+
   // Flow encouragement - reward smooth traffic
   const FLOW_BONUS_WEIGHT = 0.3; // Small positive reward for flow
   const MAX_SPEED = 3.0; // Reference speed (pixels/frame) for normalization
 
   // ============================================
   // 1. CONGESTION PENALTY
-  // Negative reward proportional to total queue length across all directions
+  // Uses Traffic State (base) queue lengths — ground truth, no noise
   // ============================================
-  
-  const totalQueueLength = environmentState.ns.queueLength + environmentState.ew.queueLength;
-  
+
+  const totalQueueLength =
+    environmentState.ns.queueLength.base +
+    environmentState.ew.queueLength.base;
+
   // Normalize queue length to a penalty in range [0, 1]
-  // Using sigmoidal-like behavior: penalty increases with queue size
   const queueNormalized = Math.min(totalQueueLength / MAX_QUEUE_LENGTH, 1.0);
   const congestionPenalty = CONGESTION_PENALTY_WEIGHT * queueNormalized;
 
   // ============================================
   // 2. WAITING TIME PENALTY
-  // Negative reward proportional to average waiting time
+  // Uses Traffic State (base) waiting times — ground truth, no noise
   // ============================================
-  
-  // Average waiting time across both directions
+
   const avgWaitingTime = (
-    environmentState.ns.avgWaitingTime + 
-    environmentState.ew.avgWaitingTime
+    environmentState.ns.avgWaitingTime.base +
+    environmentState.ew.avgWaitingTime.base
   ) / 2;
-  
+
   // Normalize waiting time to penalty in range [0, 1]
   const waitingTimeNormalized = Math.min(avgWaitingTime / MAX_WAITING_TIME, 1.0);
   const waitingTimePenalty = WAITING_TIME_PENALTY_WEIGHT * waitingTimeNormalized;
 
   // ============================================
   // 3. SWITCHING PENALTY
-  // Small negative penalty when signal changes
-  // Discourages unnecessary switching or rapid oscillation
   // ============================================
-  
+
   const switchingPenalty = signalSwitched ? SWITCHING_PENALTY : 0;
 
   // ============================================
   // 4. FLOW ENCOURAGEMENT
-  // Positive reward for higher average vehicle speed
-  // Encourages the agent to maintain smooth traffic flow
+  // Uses Traffic State (base) average speed — ground truth, no noise
   // ============================================
-  
-  // Average speed across both directions
+
   const avgSpeed = (
-    environmentState.ns.avgSpeed + 
-    environmentState.ew.avgSpeed
+    environmentState.ns.avgSpeed.base +
+    environmentState.ew.avgSpeed.base
   ) / 2;
-  
+
   // Normalize speed to bonus in range [0, 1]
-  // Speed closer to free-flow gets higher bonus
   const speedNormalized = Math.min(avgSpeed / MAX_SPEED, 1.0);
   const flowBonus = FLOW_BONUS_WEIGHT * speedNormalized;
 
@@ -121,11 +116,11 @@ export function computeReward(
   // Weighted sum of all components
   // Weighted terms ensure congestion/waiting time dominate
   // ============================================
-  
-  const totalReward = 
-    congestionPenalty + 
-    waitingTimePenalty + 
-    switchingPenalty + 
+
+  const totalReward =
+    congestionPenalty +
+    waitingTimePenalty +
+    switchingPenalty +
     flowBonus;
 
   return {

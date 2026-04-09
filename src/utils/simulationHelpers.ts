@@ -70,11 +70,11 @@ export function generateRandomVehicleConfigWithEnvironmentNoise(
   // Base speed variation
   let speed = speedRange.min + Math.random() * (speedRange.max - speedRange.min);
 
-  // Apply environment speed variance
-  // speedVariance (0-1) determines the spread
+  // Apply environment speed variance (realistic: ±5-15% of base speed)
+  // speedVariance (0-1) determines the spread; multiplier 1.5 keeps it natural
   const speedSpread = (speedRange.max - speedRange.min) * speedVariance;
-  const randomDeviation = (Math.random() - 0.5) * speedSpread * 4; // Multiplier of 4 for more dramatic environment variance
-  speed = Math.max(speedRange.min * 0.4, Math.min(speedRange.max * 1.8, speed + randomDeviation));
+  const randomDeviation = (Math.random() - 0.5) * speedSpread * 1.5;
+  speed = Math.max(speedRange.min * 0.85, Math.min(speedRange.max * 1.15, speed + randomDeviation));
 
   return { size, color, speed };
 }
@@ -313,7 +313,7 @@ export class TrafficBurstManager {
 
   /**
    * Generate burst duration
-   * Range: 8-15 seconds (shorter for more frequent changes)
+   * Range: 10-25 seconds (longer bursts)
    */
   private getBurstDuration(): number {
     return 8000 + Math.random() * 7000; // 8-15 seconds
@@ -321,11 +321,12 @@ export class TrafficBurstManager {
 
   /**
    * Generate burst intensity
-   * Range: 1.2-2.5 (20-150% increase in traffic for higher variability)
+   * Range: 2.0-5.0 (Significant surge)
    * Multiplied by burstIntensityConfig for environment noise control
    */
   private getBurstIntensity(intensityConfig: number = 1.0): number {
-    const base = 1.2 + Math.random() * 1.3; // 1.2-2.5
+    // Realistic burst: 10-40% increase in spawn probability
+    const base = 1.1 + Math.random() * 0.3; // 1.1-1.4x
     return base * intensityConfig;
   }
 
@@ -350,7 +351,8 @@ export class TrafficBurstManager {
    * Range: 0.3-0.8 (30-80% stronger vehicle arrival for preferred direction)
    */
   private getFlowBiasStrength(): number {
-    return 0.3 + Math.random() * 0.5; // 0.3-0.8
+    // Realistic bias: 10-30% preference for one direction
+    return 0.1 + Math.random() * 0.2; // 0.1-0.3
   }
 
   /**
