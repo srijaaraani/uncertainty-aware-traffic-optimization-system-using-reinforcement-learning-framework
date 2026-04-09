@@ -21,10 +21,10 @@
 import { EnvironmentState } from '@/utils/environmentState';
 
 /**
- * Noise configuration parameters for sensor uncertainty simulation.
+ * Training Noise configuration parameters for sensor uncertainty simulation.
  * Each parameter controls the distribution characteristics for a specific metric type.
  */
-export interface SensorNoiseConfig {
+export interface TrainingNoiseConfig {
   /**
    * Queue length noise: maximum integer deviation k for discrete distribution [v-k, ..., v+k]
    * Example: k=2 means distribution over [v-2, v-1, v, v+1, v+2]
@@ -49,7 +49,7 @@ export interface SensorNoiseConfig {
 /**
  * Default noise configuration with moderate sensor uncertainty.
  */
-export const DEFAULT_NOISE_CONFIG: SensorNoiseConfig = {
+export const DEFAULT_TRAINING_NOISE_CONFIG: TrainingNoiseConfig = {
   queueLengthNoise: 2,        // ±2 vehicles for discrete distribution
   avgWaitingTimeNoise: 0.15,  // 15% std dev for normal distribution
   avgSpeedNoise: 0.2,         // 20% std dev for normal distribution
@@ -214,7 +214,7 @@ function sampleContinuousMetric(trueValue: number, stdDevFraction: number): numb
  */
 function applyNoiseToDirectionMetrics(
   metrics: EnvironmentState['ns'],
-  noiseConfig: SensorNoiseConfig
+  noiseConfig: TrainingNoiseConfig
 ): EnvironmentState['ns'] {
   return {
     // Discrete metric: sample from discrete distribution [v-k, ..., v+k]
@@ -233,7 +233,7 @@ function applyNoiseToDirectionMetrics(
 }
 
 /**
- * Applies probabilistic sensor noise to an environment state by sampling
+ * Applies training (observation) noise to an environment state by sampling
  * observations from probability distributions centered at true values.
  * 
  * This function simulates realistic sensor uncertainty:
@@ -244,25 +244,25 @@ function applyNoiseToDirectionMetrics(
  * is created and returned with sampled observations.
  * 
  * @param state - The original environment state (will not be modified)
- * @param noiseConfig - Configuration for noise levels (defaults to DEFAULT_NOISE_CONFIG)
+ * @param noiseConfig - Configuration for noise levels (defaults to DEFAULT_TRAINING_NOISE_CONFIG)
  * @returns A new EnvironmentState object with sampled observations
  * 
  * @example
  * ```typescript
- * import { applySensorNoise } from '@/corelogic/probabilisticSensorModel';
+ * import { applyTrainingNoise } from '@/corelogic/probabilisticSensorModel';
  * import { getEnvironmentState } from '@/utils/environmentState';
  * 
  * const cleanState = getEnvironmentState(vehicles, config, signalState, lastChangeTime);
- * const noisyState = applySensorNoise(cleanState, {
+ * const noisyState = applyTrainingNoise(cleanState, {
  *   queueLengthNoise: 2,        // ±2 vehicles for discrete distribution
  *   avgWaitingTimeNoise: 0.15,  // 15% std dev for normal distribution
  *   avgSpeedNoise: 0.2          // 20% std dev for normal distribution
  * });
  * ```
  */
-export function applySensorNoise(
+export function applyTrainingNoise(
   state: EnvironmentState,
-  noiseConfig: SensorNoiseConfig = DEFAULT_NOISE_CONFIG
+  noiseConfig: TrainingNoiseConfig = DEFAULT_TRAINING_NOISE_CONFIG
 ): EnvironmentState {
   // Create a new state object (do not modify the original)
   return {

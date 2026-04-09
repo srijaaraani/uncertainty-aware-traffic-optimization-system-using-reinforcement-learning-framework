@@ -56,11 +56,11 @@ export function generateRandomVehicleConfig() {
 }
 
 /**
- * Generate vehicle config with traffic randomness applied to speed variation
- * Higher randomness increases speed variation around the base range
+ * Generate vehicle config with environment speed variance applied
+ * Higher variance increases speed variation around the base range
  */
-export function generateRandomVehicleConfigWithRandomness(
-  trafficRandomness: number
+export function generateRandomVehicleConfigWithEnvironmentNoise(
+  speedVariance: number
 ) {
   const sizes: VehicleSize[] = ['small', 'medium', 'large'];
   const size = sizes[Math.floor(Math.random() * sizes.length)];
@@ -70,11 +70,11 @@ export function generateRandomVehicleConfigWithRandomness(
   // Base speed variation
   let speed = speedRange.min + Math.random() * (speedRange.max - speedRange.min);
 
-  // Apply traffic randomness to speed
-  // Higher randomness = wider range of speeds
-  const speedSpread = (speedRange.max - speedRange.min) * trafficRandomness;
-  const randomDeviation = (Math.random() - 0.5) * speedSpread * 2;
-  speed = Math.max(speedRange.min * 0.5, Math.min(speedRange.max * 1.5, speed + randomDeviation));
+  // Apply environment speed variance
+  // speedVariance (0-1) determines the spread
+  const speedSpread = (speedRange.max - speedRange.min) * speedVariance;
+  const randomDeviation = (Math.random() - 0.5) * speedSpread * 4; // Multiplier of 4 for more dramatic environment variance
+  speed = Math.max(speedRange.min * 0.4, Math.min(speedRange.max * 1.8, speed + randomDeviation));
 
   return { size, color, speed };
 }
@@ -322,9 +322,11 @@ export class TrafficBurstManager {
   /**
    * Generate burst intensity
    * Range: 1.2-2.5 (20-150% increase in traffic for higher variability)
+   * Multiplied by burstIntensityConfig for environment noise control
    */
-  private getBurstIntensity(): number {
-    return 1.2 + Math.random() * 1.3; // 1.2-2.5
+  private getBurstIntensity(intensityConfig: number = 1.0): number {
+    const base = 1.2 + Math.random() * 1.3; // 1.2-2.5
+    return base * intensityConfig;
   }
 
   /**
@@ -380,10 +382,10 @@ export class TrafficBurstManager {
   }
 
   /**
-   * Update burst state based on elapsed time
+   * Update burst state based on elapsed time and environment noise
    * Call this regularly to manage burst transitions
    */
-  updateBurst(): TrafficBurstState {
+  updateBurst(burstIntensityConfig: number = 1.0): TrafficBurstState {
     const now = Date.now();
 
     // Check if current burst should end
@@ -401,7 +403,7 @@ export class TrafficBurstManager {
       this.currentBurst.direction = this.getNextBurstDirection(previousDir);
       this.currentBurst.startTime = now;
       this.currentBurst.duration = this.getBurstDuration();
-      this.currentBurst.intensity = this.getBurstIntensity();
+      this.currentBurst.intensity = this.getBurstIntensity(burstIntensityConfig);
     }
 
     // Update flow bias state

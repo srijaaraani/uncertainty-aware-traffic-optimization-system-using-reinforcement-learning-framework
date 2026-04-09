@@ -18,7 +18,7 @@ import { VehicleCounters } from './VehicleCounters';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Settings, Activity, Zap, Cpu } from 'lucide-react';
-import { SensorNoiseConfig } from '@/corelogic/probabilisticSensorModel';
+import { TrainingNoiseConfig } from '@/corelogic/probabilisticSensorModel';
 import { TrainingMetrics } from '@/corelogic/dqnAgent';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -28,8 +28,8 @@ interface ControlPanelProps {
   signalState: SimulationState['signalState'];
   vehicleCounts: SimulationState['vehicleCounts'];
   config: SimulationState['config'];
-  noiseConfig: SensorNoiseConfig;
-  noiseEnabled: boolean;
+  trainingNoiseConfig: TrainingNoiseConfig;
+  trainingNoiseEnabled: boolean;
   agentEnabled: boolean;
   dqnMode?: boolean;
   dqnMetrics?: TrainingMetrics | null;
@@ -38,8 +38,8 @@ interface ControlPanelProps {
   onReset: () => void;
   onSignalChange: (direction: SignalDirection) => void;
   onTrafficRandomnessChange: (randomness: number) => void;
-  onNoiseConfigChange: (config: SensorNoiseConfig) => void;
-  onNoiseEnabledChange: (enabled: boolean) => void;
+  onTrainingNoiseConfigChange: (config: TrainingNoiseConfig) => void;
+  onTrainingNoiseEnabledChange: (enabled: boolean) => void;
   onAgentEnabledChange: (enabled: boolean) => void;
   onDqnModeChange?: (enabled: boolean) => void;
 }
@@ -49,8 +49,8 @@ export function ControlPanel({
   signalState,
   vehicleCounts,
   config,
-  noiseConfig,
-  noiseEnabled,
+  trainingNoiseConfig,
+  trainingNoiseEnabled,
   agentEnabled,
   dqnMode = false,
   dqnMetrics = null,
@@ -59,8 +59,8 @@ export function ControlPanel({
   onReset,
   onSignalChange,
   onTrafficRandomnessChange,
-  onNoiseConfigChange,
-  onNoiseEnabledChange,
+  onTrainingNoiseConfigChange,
+  onTrainingNoiseEnabledChange,
   onAgentEnabledChange,
   onDqnModeChange,
 }: ControlPanelProps) {
@@ -100,12 +100,12 @@ export function ControlPanel({
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Agent Status</span>
             </div>
             <div className="p-2.5 text-center flex items-center justify-center gap-1.5 border-r border-slate-200">
-              <Zap className="w-3.5 h-3.5 text-amber-500" />
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Traffic Dynamics</span>
+              <Zap className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Environment Dynamics</span>
             </div>
             <div className="p-2.5 text-center flex items-center justify-center gap-1.5">
               <Zap className="w-3.5 h-3.5 text-blue-600" />
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sensor Uncertainty</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Training Noise</span>
             </div>
           </div>
           
@@ -127,30 +127,30 @@ export function ControlPanel({
               </Badge>
             </div>
             
-            {/* Traffic Dynamics Value */}
+            {/* Environment Dynamics Value */}
             <div className="p-4 flex flex-col items-center justify-center gap-1.5 border-r border-slate-100">
               <div className="flex flex-col gap-1 w-full">
-                <div className="flex justify-between items-center px-2 py-0.5 bg-amber-50/50 rounded border border-amber-100/50">
-                  <span className="text-[9px] font-bold text-amber-500 uppercase">Random</span>
-                  <span className="text-xs font-bold text-amber-700">{(config.trafficRandomness * 100).toFixed(0)}%</span>
+                <div className="flex justify-between items-center px-1.5 py-0.5 bg-emerald-50/50 rounded border border-emerald-100/50">
+                  <span className="text-[8px] font-bold text-emerald-600 uppercase">Jitter</span>
+                  <span className="text-[10px] font-bold text-emerald-700">{(config.environmentNoise.spawnJitter * 100).toFixed(0)}%</span>
                 </div>
-                <div className="flex justify-between items-center px-2 py-0.5 bg-amber-50/50 rounded border border-amber-100/50">
-                  <span className="text-[9px] font-bold text-amber-500 uppercase">Spawn</span>
-                  <span className="text-xs font-bold text-amber-700">{config.spawnRate.toFixed(1)}/s</span>
+                <div className="flex justify-between items-center px-1.5 py-0.5 bg-emerald-50/50 rounded border border-emerald-100/50">
+                  <span className="text-[8px] font-bold text-emerald-600 uppercase">Speed Var</span>
+                  <span className="text-[10px] font-bold text-emerald-700">{(config.environmentNoise.speedVariance * 100).toFixed(0)}%</span>
                 </div>
               </div>
             </div>
             
-            {/* Sensor Uncertainty Value */}
+            {/* Training Noise Value */}
             <div className="p-4 flex flex-col items-center justify-center gap-1.5">
               <div className="flex flex-col gap-1 w-full">
-                <div className="flex justify-between items-center px-2 py-0.5 bg-blue-50/50 rounded border border-blue-100/50">
-                  <span className="text-[9px] font-bold text-blue-400 uppercase">Queue</span>
-                  <span className="text-xs font-bold text-blue-700">±{Math.round(noiseConfig.queueLengthNoise)}</span>
+                <div className="flex justify-between items-center px-1.5 py-0.5 bg-blue-50/50 rounded border border-blue-100/50">
+                  <span className="text-[8px] font-bold text-blue-400 uppercase">Queue</span>
+                  <span className="text-[10px] font-bold text-blue-700">±{Math.round(trainingNoiseConfig.queueLengthNoise)}</span>
                 </div>
-                <div className="flex justify-between items-center px-2 py-0.5 bg-blue-50/50 rounded border border-blue-100/50">
-                  <span className="text-[9px] font-bold text-blue-400 uppercase">Wait</span>
-                  <span className="text-xs font-bold text-blue-700">{(noiseConfig.avgWaitingTimeNoise * 100).toFixed(0)}%</span>
+                <div className="flex justify-between items-center px-1.5 py-0.5 bg-blue-50/50 rounded border border-blue-100/50">
+                  <span className="text-[8px] font-bold text-blue-400 uppercase">Wait</span>
+                  <span className="text-[10px] font-bold text-blue-700">{(trainingNoiseConfig.avgWaitingTimeNoise * 100).toFixed(0)}%</span>
                 </div>
               </div>
             </div>

@@ -20,7 +20,7 @@ import { SimulationMetrics, Direction, SimulationConfig, TrafficLightState } fro
 import { calculateMetrics } from '@/utils/metricsCalculator';
 import { Vehicle } from '@/types/simulation';
 import { getEnvironmentState } from '@/utils/environmentState';
-import { applySensorNoise, SensorNoiseConfig } from '@/corelogic/probabilisticSensorModel';
+import { applyTrainingNoise, TrainingNoiseConfig } from '@/corelogic/probabilisticSensorModel';
 import { BarChart3, Clock, TrendingUp, Gauge, Timer, Eye } from 'lucide-react';
 
 interface MetricsDisplayProps {
@@ -29,7 +29,8 @@ interface MetricsDisplayProps {
   lastSignalChangeTime: number;
   isRunning: boolean;
   signalState: TrafficLightState;
-  noiseConfig: SensorNoiseConfig;
+  trainingNoiseConfig: TrainingNoiseConfig;
+  trainingNoiseEnabled: boolean;
   agentEnabled?: boolean;
   hasSimulationBeenStarted: boolean;
   simulationSessionId: number;
@@ -149,7 +150,8 @@ export function MetricsDisplay({
   lastSignalChangeTime,
   isRunning,
   signalState,
-  noiseConfig,
+  trainingNoiseConfig,
+  trainingNoiseEnabled,
   agentEnabled,
   hasSimulationBeenStarted,
   simulationSessionId,
@@ -157,7 +159,7 @@ export function MetricsDisplay({
 }: MetricsDisplayProps) {
   const [metrics, setMetrics] = useState<SimulationMetrics | null>(null);
   const [trueState, setTrueState] = useState<ReturnType<typeof getEnvironmentState> | null>(null);
-  const [noisyState, setNoisyState] = useState<ReturnType<typeof applySensorNoise> | null>(null);
+  const [noisyState, setNoisyState] = useState<ReturnType<typeof applyTrainingNoise> | null>(null);
   const [samplingKey, setSamplingKey] = useState(0);
 
   // Reset metrics when a new simulation session starts (after reset)
@@ -179,13 +181,13 @@ export function MetricsDisplay({
       );
       setMetrics(calculatedMetrics);
       
-      // Calculate true environment state
+      // Calculate true environment state (including environment noise from simulation)
       const envState = getEnvironmentState(vehicles, config, signalState, lastSignalChangeTime);
       setTrueState(envState);
       
-      // Apply sensor noise to get noisy observations
-      // Note: Each call to applySensorNoise samples new values from distributions
-      const noisy = applySensorNoise(envState, noiseConfig);
+      // Apply training noise to get noisy observations for the agent
+      // Note: Each call to applyTrainingNoise samples new values from distributions
+      const noisy = applyTrainingNoise(envState, trainingNoiseConfig);
       setNoisyState(noisy);
       
       // Increment sampling key to force re-render of sampled observations
@@ -221,7 +223,7 @@ export function MetricsDisplay({
     }, 500); // Update every 500ms
 
     return () => clearInterval(interval);
-  }, [vehicles, config, lastSignalChangeTime, isRunning, signalState, noiseConfig, agentEnabled, onNoisyObservationUpdate]);
+  }, [vehicles, config, lastSignalChangeTime, isRunning, signalState, trainingNoiseConfig, trainingNoiseEnabled, agentEnabled, onNoisyObservationUpdate]);
 
   // Calculate metrics once on mount or when simulation state changes
   // IMPORTANT: When paused (!isRunning), do NOT recalculate metrics on dependency changes
@@ -242,8 +244,8 @@ export function MetricsDisplay({
     const envState = getEnvironmentState(vehicles, config, signalState, lastSignalChangeTime);
     setTrueState(envState);
     
-    // Apply sensor noise to get noisy observations
-    const noisy = applySensorNoise(envState, noiseConfig);
+    // Apply training noise to get noisy observations
+    const noisy = applyTrainingNoise(envState, trainingNoiseConfig);
     setNoisyState(noisy);
     
     // If agent is enabled, provide noisy observation to agent
@@ -273,7 +275,7 @@ export function MetricsDisplay({
       avgWaitingTime: noisy.ns.avgWaitingTime.toFixed(2),
       avgSpeed: noisy.ns.avgSpeed.toFixed(2),
     });
-  }, [vehicles, config, lastSignalChangeTime, signalState, noiseConfig, agentEnabled, onNoisyObservationUpdate, isRunning]);
+  }, [vehicles, config, lastSignalChangeTime, signalState, trainingNoiseConfig, trainingNoiseEnabled, agentEnabled, onNoisyObservationUpdate, isRunning]);
 
   // When paused, keep displaying the last frozen metrics (do not resample)
   // This ensures all traffic metrics remain static when simulation is paused
@@ -347,10 +349,10 @@ export function MetricsDisplay({
           </span>
         </div>
 
-        {/* Aggregated Metrics with Sensor Uncertainty (NS/EW) */}
+        {/* Aggregated Metrics with Training (Observation) Noise (NS/EW) */}
         <div className="space-y-4">
           <h3 className="text-sm font-semibold text-foreground">
-            Aggregated Metrics (with Sensor Uncertainty)
+            Aggregated Metrics (with Training Noise)
           </h3>
           
           {/* North-South Direction */}
@@ -364,7 +366,7 @@ export function MetricsDisplay({
               trueValue={trueState.ns.queueLength}
               observedValue={noisyState.ns.queueLength}
               isDiscrete={true}
-              k={noiseConfig.queueLengthNoise}
+              k={trainingNoiseConfig.queueLengthNoise}
               unit="vehicles"
               formatValue={(v) => {
                 const rounded = Math.round(v);
@@ -378,7 +380,7 @@ export function MetricsDisplay({
               trueValue={trueState.ns.avgWaitingTime}
               observedValue={noisyState.ns.avgWaitingTime}
               isDiscrete={false}
-              stdDevFraction={noiseConfig.avgWaitingTimeNoise}
+              stdDevFraction={trainingNoiseConfig.avgWaitingTimeNoise}
               unit="s"
               formatValue={(v) => v.toFixed(1)}
             />
@@ -388,7 +390,7 @@ export function MetricsDisplay({
               trueValue={trueState.ns.maxWaitingTime}
               observedValue={noisyState.ns.maxWaitingTime}
               isDiscrete={false}
-              stdDevFraction={noiseConfig.avgWaitingTimeNoise}
+              stdDevFraction={trainingNoiseConfig.avgWaitingTimeNoise}
               unit="s"
               formatValue={(v) => v.toFixed(1)}
             />
@@ -408,7 +410,7 @@ export function MetricsDisplay({
               trueValue={trueState.ns.avgSpeed}
               observedValue={noisyState.ns.avgSpeed}
               isDiscrete={false}
-              stdDevFraction={noiseConfig.avgSpeedNoise}
+              stdDevFraction={trainingNoiseConfig.avgSpeedNoise}
               unit="px/frame"
               formatValue={(v) => v.toFixed(2)}
             />
@@ -425,7 +427,7 @@ export function MetricsDisplay({
               trueValue={trueState.ew.queueLength}
               observedValue={noisyState.ew.queueLength}
               isDiscrete={true}
-              k={noiseConfig.queueLengthNoise}
+              k={trainingNoiseConfig.queueLengthNoise}
               unit="vehicles"
               formatValue={(v) => {
                 const rounded = Math.round(v);
@@ -439,7 +441,7 @@ export function MetricsDisplay({
               trueValue={trueState.ew.avgWaitingTime}
               observedValue={noisyState.ew.avgWaitingTime}
               isDiscrete={false}
-              stdDevFraction={noiseConfig.avgWaitingTimeNoise}
+              stdDevFraction={trainingNoiseConfig.avgWaitingTimeNoise}
               unit="s"
               formatValue={(v) => v.toFixed(1)}
             />
@@ -449,7 +451,7 @@ export function MetricsDisplay({
               trueValue={trueState.ew.maxWaitingTime}
               observedValue={noisyState.ew.maxWaitingTime}
               isDiscrete={false}
-              stdDevFraction={noiseConfig.avgWaitingTimeNoise}
+              stdDevFraction={trainingNoiseConfig.avgWaitingTimeNoise}
               unit="s"
               formatValue={(v) => v.toFixed(1)}
             />
@@ -469,7 +471,7 @@ export function MetricsDisplay({
               trueValue={trueState.ew.avgSpeed}
               observedValue={noisyState.ew.avgSpeed}
               isDiscrete={false}
-              stdDevFraction={noiseConfig.avgSpeedNoise}
+              stdDevFraction={trainingNoiseConfig.avgSpeedNoise}
               unit="px/frame"
               formatValue={(v) => v.toFixed(2)}
             />

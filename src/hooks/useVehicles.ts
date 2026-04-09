@@ -17,7 +17,7 @@ import {
 } from '@/types/simulation';
 import {
   generateRandomVehicleConfig,
-  generateRandomVehicleConfigWithRandomness,
+  generateRandomVehicleConfigWithEnvironmentNoise,
   generateVehicleId,
   getSpawnPosition,
   getVehicleDimensions,
@@ -68,7 +68,7 @@ export function useVehicles(options: UseVehiclesOptions) {
   const spawnVehicle = useCallback((direction: Direction) => {
     const numLanes = config.laneConfig[direction];
     const lane = Math.floor(Math.random() * numLanes);
-    const vehicleConfig = generateRandomVehicleConfigWithRandomness(config.trafficRandomness);
+    const vehicleConfig = generateRandomVehicleConfigWithEnvironmentNoise(config.environmentNoise.speedVariance);
     const position = getSpawnPosition(direction, lane, config, virtualWidth, virtualHeight);
 
     const now = Date.now();
@@ -284,27 +284,30 @@ export function useVehicles(options: UseVehiclesOptions) {
     const now = Date.now();
     const spawnInterval = 1000 / config.spawnRate; // ms between spawns
 
-    // Increase spawn interval variability for higher stochasticity
-    // This makes spawn timing less predictable
-    // Higher randomness = much more variable spawn timing (0.8-1.8x jitter factor)
-    const jitterAmount = spawnInterval * (0.8 + config.trafficRandomness * 1.0);
+    // Apply environment spawn jitter (0-1)
+    // jitterAmount creates variability in the time between spawns
+    const jitterAmount = spawnInterval * (0.8 + config.environmentNoise.spawnJitter * 2.5);
 
     DIRECTIONS.forEach((direction) => {
       const lastSpawn = lastSpawnTimeRef.current[direction];
       const jitter = (Math.random() - 0.5) * jitterAmount;
 
       if (now - lastSpawn >= spawnInterval + jitter) {
-        // Higher base spawn probability with greater variability
-        // Low randomness: still variable (60-80%)
-        // High randomness: highly chaotic (70-100%, capped at 0.95)
+        // Base probability influenced by overall traffic randomness
         let spawnProbability = 0.65 + config.trafficRandomness * 0.3;
 
+        // Apply directional bias from environment noise
+        // bias range -1 (EW heavy) to 1 (NS heavy)
+        const isNS = direction === 'north' || direction === 'south';
+        const biasFactor = isNS ? config.environmentNoise.directionalBias : -config.environmentNoise.directionalBias;
+        
+        // Intensity 0.5-1.5 maps to probability multiplier
+        const biasMultiplier = 1 + (biasFactor * 0.5);
+        spawnProbability = Math.max(0.1, Math.min(0.95, spawnProbability * biasMultiplier));
+
         // Apply direction-specific burst intensity
-        // If this direction is experiencing a burst, increase spawn probability
         if (config.trafficBurstState) {
           const directionIntensity = config.trafficBurstState.directionIntensities[direction];
-          // Intensity 0.5-2.5 maps to probability multiplier
-          // Creates stronger vehicle clustering during high-intensity periods
           const intensityMultiplier = (directionIntensity - 0.5) * 0.5 + 1;
           spawnProbability = Math.min(0.95, spawnProbability * intensityMultiplier);
         }
@@ -315,7 +318,7 @@ export function useVehicles(options: UseVehiclesOptions) {
         lastSpawnTimeRef.current[direction] = now;
       }
     });
-  }, [config.spawnRate, config.trafficRandomness, config.trafficBurstState, spawnVehicle]);
+  }, [config.spawnRate, config.trafficRandomness, config.environmentNoise, config.trafficBurstState, spawnVehicle]);
 
   // ============================================
   // ANIMATION LOOP

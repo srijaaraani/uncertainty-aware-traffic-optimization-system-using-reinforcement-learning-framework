@@ -50,12 +50,20 @@ const DEFAULT_BURST_STATE: TrafficBurstState = {
   flowBiasStrength: 0,
 };
 
+const DEFAULT_ENVIRONMENT_NOISE: EnvironmentNoiseConfig = {
+  spawnJitter: 0.5,
+  burstIntensity: 1.0,
+  directionalBias: 0,
+  speedVariance: 0.2,
+};
+
 const DEFAULT_CONFIG: SimulationConfig = {
   spawnRate: 1.5, // Increased from 1.0 for more vehicles and higher variability
   laneConfig: DEFAULT_LANE_CONFIG,
   intersectionSize: 120,
   roadWidth: 40,
-  trafficRandomness: 0.75, // Increased from 0.5 for higher variability
+  trafficRandomness: 0.75, // Overall variability baseline
+  environmentNoise: DEFAULT_ENVIRONMENT_NOISE,
   trafficBurstState: DEFAULT_BURST_STATE,
 };
 
@@ -317,6 +325,16 @@ export function useSimulation(options: UseSimulationOptions = {}) {
     }));
   }, []);
 
+  const setEnvironmentNoise = useCallback((noise: Partial<EnvironmentNoiseConfig>) => {
+    setConfig((prev) => ({
+      ...prev,
+      environmentNoise: {
+        ...prev.environmentNoise,
+        ...noise,
+      },
+    }));
+  }, []);
+
   // ============================================
   // VEHICLE COUNT UPDATES
   // ============================================
@@ -358,7 +376,7 @@ export function useSimulation(options: UseSimulationOptions = {}) {
     if (!isRunning) return;
 
     const updateInterval = setInterval(() => {
-      const burstState = burstManagerRef.current.updateBurst();
+      const burstState = burstManagerRef.current.updateBurst(config.environmentNoise.burstIntensity);
       setConfig((prev) => ({
         ...prev,
         trafficBurstState: burstState,
@@ -453,6 +471,7 @@ export function useSimulation(options: UseSimulationOptions = {}) {
     setSpawnRate,
     setLaneConfig,
     setTrafficRandomness,
+    setEnvironmentNoise,
     // Vehicle counts
     incrementVehicleCount,
     resetVehicleCounts,

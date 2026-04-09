@@ -15,14 +15,15 @@ import { IntersectionView } from '@/components/simulation/IntersectionView';
 import { ControlPanel } from '@/components/controls/ControlPanel';
 import { MetricsDisplay } from '@/components/controls/MetricsDisplay';
 import { Direction } from '@/types/simulation';
-import { SensorNoiseConfig, DEFAULT_NOISE_CONFIG } from '@/corelogic/probabilisticSensorModel';
+import { TrainingNoiseConfig, DEFAULT_TRAINING_NOISE_CONFIG, applyTrainingNoise } from '@/corelogic/probabilisticSensorModel';
 import { trafficSignalAgent, AgentObservation, SignalPhase, AgentAction } from '@/corelogic/agent';
 import { signalController } from '@/corelogic/signalController';
 import { dqnAgent, QValueDecision } from '@/corelogic/dqnAgent';
 import { QValueDisplay } from '@/components/controls/QValueDisplay';
-import { Settings, X, Play, Pause, RotateCcw, ArrowLeftRight, Bot, Filter } from 'lucide-react';
+import { Settings, X, Play, Pause, RotateCcw, ArrowLeftRight, Bot, Filter, Activity, Eye } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 
 export default function Index() {
   const {
@@ -38,6 +39,7 @@ export default function Index() {
     setSpawnRate,
     setLaneConfig,
     setTrafficRandomness,
+    setEnvironmentNoise,
     incrementVehicleCount,
     resetVehicleCounts,
     applyAgentDecision,
@@ -54,13 +56,14 @@ export default function Index() {
     simulationSessionId,
   } = useSimulation();
 
-  // Sensor noise configuration state
-  const [noiseConfig, setNoiseConfig] = useState<SensorNoiseConfig>(DEFAULT_NOISE_CONFIG);
-  const [noiseEnabled, setNoiseEnabled] = useState(true);
+  // Training (Observation) noise configuration state
+  const [trainingNoiseConfig, setTrainingNoiseConfig] = useState<TrainingNoiseConfig>(DEFAULT_TRAINING_NOISE_CONFIG);
+  const [trainingNoiseEnabled, setTrainingNoiseEnabled] = useState(true);
 
-  // Determine which noise config to use based on noise enabled state
-  const effectiveNoiseConfig: SensorNoiseConfig = noiseEnabled
-    ? noiseConfig
+  // Determine which noise config to use based on training noise enabled state
+  // This is used for generating the observation for the agent
+  const effectiveTrainingNoiseConfig: TrainingNoiseConfig = trainingNoiseEnabled
+    ? trainingNoiseConfig
     : {
       queueLengthNoise: 0,
       avgWaitingTimeNoise: 0,
@@ -381,47 +384,105 @@ export default function Index() {
                   </button>
                 </header>
                 
-                {/* Traffic Randomness */}
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-xs font-semibold text-slate-700">Traffic Randomness</Label>
-                    <span className="text-xs font-mono bg-blue-50 px-2 py-0.5 rounded text-blue-700">{(config.trafficRandomness * 100).toFixed(0)}%</span>
+                {/* Group 1: Environment Dynamics */}
+                <div className="space-y-4">
+                  <header className="flex items-center gap-1.5 border-b border-emerald-100 pb-1.5 mb-2">
+                    <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Environment Dynamics</span>
+                  </header>
+
+                  {/* Overall Randomness */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-[10px] font-semibold text-slate-600">Base Randomness</Label>
+                      <span className="text-[10px] font-mono bg-emerald-50 px-1.5 py-0.5 rounded text-emerald-700">{(config.trafficRandomness * 100).toFixed(0)}%</span>
+                    </div>
+                    <Slider 
+                      value={[config.trafficRandomness]} 
+                      min={0} max={1} step={0.01} 
+                      onValueChange={(val) => setTrafficRandomness(val[0])}
+                    />
                   </div>
-                  <Slider 
-                    value={[config.trafficRandomness]} 
-                    min={0} max={1} step={0.01} 
-                    onValueChange={(val) => setTrafficRandomness(val[0])}
-                  />
+
+                  {/* Spawn Jitter */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-[10px] font-semibold text-slate-600">Spawn Jitter</Label>
+                      <span className="text-[10px] font-mono bg-emerald-50 px-1.5 py-0.5 rounded text-emerald-700">{(config.environmentNoise.spawnJitter * 100).toFixed(0)}%</span>
+                    </div>
+                    <Slider 
+                      value={[config.environmentNoise.spawnJitter]} 
+                      min={0} max={1} step={0.01} 
+                      onValueChange={(val) => setEnvironmentNoise({ spawnJitter: val[0] })}
+                    />
+                  </div>
+
+                  {/* Speed Variance */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-[10px] font-semibold text-slate-600">Speed Variance</Label>
+                      <span className="text-[10px] font-mono bg-emerald-50 px-1.5 py-0.5 rounded text-emerald-700">{(config.environmentNoise.speedVariance * 100).toFixed(0)}%</span>
+                    </div>
+                    <Slider 
+                      value={[config.environmentNoise.speedVariance]} 
+                      min={0} max={1} step={0.01} 
+                      onValueChange={(val) => setEnvironmentNoise({ speedVariance: val[0] })}
+                    />
+                  </div>
+
+                  {/* Directional Bias */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-[10px] font-semibold text-slate-600">Directional Bias (NS vs EW)</Label>
+                      <span className="text-[10px] font-mono bg-emerald-50 px-1.5 py-0.5 rounded text-emerald-700">{config.environmentNoise.directionalBias > 0 ? 'NS Heavy' : config.environmentNoise.directionalBias < 0 ? 'EW Heavy' : 'Balanced'}</span>
+                    </div>
+                    <Slider 
+                      value={[config.environmentNoise.directionalBias]} 
+                      min={-1} max={1} step={0.1} 
+                      onValueChange={(val) => setEnvironmentNoise({ directionalBias: val[0] })}
+                    />
+                  </div>
                 </div>
 
-                {/* Queue Noise */}
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-xs font-semibold text-slate-700">Queue Length Noise</Label>
-                    <span className="text-xs font-mono bg-blue-50 px-2 py-0.5 rounded text-blue-700">±{noiseConfig.queueLengthNoise}</span>
-                  </div>
-                  <Slider 
-                    value={[noiseConfig.queueLengthNoise]} 
-                    min={0} max={10} step={1} 
-                    onValueChange={(val) => setNoiseConfig({...noiseConfig, queueLengthNoise: val[0]})}
-                  />
-                </div>
+                <Separator className="my-2 bg-slate-100" />
 
-                {/* Waiting Time Noise */}
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-xs font-semibold text-slate-700">Wait Time Noise</Label>
-                    <span className="text-xs font-mono bg-blue-50 px-2 py-0.5 rounded text-blue-700">{(noiseConfig.avgWaitingTimeNoise * 100).toFixed(0)}%</span>
+                {/* Group 2: Training Noise */}
+                <div className="space-y-4">
+                  <header className="flex items-center gap-1.5 border-b border-blue-100 pb-1.5 mb-2">
+                    <Eye className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Training (Observation) Noise</span>
+                  </header>
+
+                  {/* Queue Noise */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-[10px] font-semibold text-slate-600">Queue Metric Error</Label>
+                      <span className="text-[10px] font-mono bg-blue-50 px-1.5 py-0.5 rounded text-blue-700">±{trainingNoiseConfig.queueLengthNoise}</span>
+                    </div>
+                    <Slider 
+                      value={[trainingNoiseConfig.queueLengthNoise]} 
+                      min={0} max={10} step={1} 
+                      onValueChange={(val) => setTrainingNoiseConfig({...trainingNoiseConfig, queueLengthNoise: val[0]})}
+                    />
                   </div>
-                  <Slider 
-                    value={[noiseConfig.avgWaitingTimeNoise]} 
-                    min={0} max={0.5} step={0.01} 
-                    onValueChange={(val) => setNoiseConfig({...noiseConfig, avgWaitingTimeNoise: val[0]})}
-                  />
+
+                  {/* Waiting Time Noise */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-[10px] font-semibold text-slate-600">Wait Time Error</Label>
+                      <span className="text-[10px] font-mono bg-blue-50 px-1.5 py-0.5 rounded text-blue-700">{(trainingNoiseConfig.avgWaitingTimeNoise * 100).toFixed(0)}%</span>
+                    </div>
+                    <Slider 
+                      value={[trainingNoiseConfig.avgWaitingTimeNoise]} 
+                      min={0} max={0.5} step={0.01} 
+                      onValueChange={(val) => setTrainingNoiseConfig({...trainingNoiseConfig, avgWaitingTimeNoise: val[0]})}
+                    />
+                  </div>
                 </div>
                 
-                <div className="pt-2 border-t border-slate-100 italic text-[10px] text-slate-400 text-center">
-                  Simulates real-world sensor uncertainty
+                <div className="pt-2 border-t border-slate-100 italic text-[9px] text-slate-400 text-center leading-tight">
+                  Environment: physics variability<br/>
+                  Training: agent perception error
                 </div>
               </div>
             </div>
@@ -460,7 +521,8 @@ export default function Index() {
                 lastSignalChangeTime={lastSignalChangeTime}
                 isRunning={isRunning}
                 signalState={signalState}
-                noiseConfig={effectiveNoiseConfig}
+                trainingNoiseConfig={effectiveTrainingNoiseConfig}
+                trainingNoiseEnabled={trainingNoiseEnabled}
                 agentEnabled={agentEnabled}
                 onNoisyObservationUpdate={setLastAgentObservation}
                 hasSimulationBeenStarted={hasSimulationBeenStarted}
@@ -486,8 +548,8 @@ export default function Index() {
                 signalState={signalState}
                 vehicleCounts={vehicleCounts}
                 config={config}
-                noiseConfig={noiseConfig}
-                noiseEnabled={noiseEnabled}
+                trainingNoiseConfig={trainingNoiseConfig}
+                trainingNoiseEnabled={trainingNoiseEnabled}
                 agentEnabled={agentEnabled}
                 dqnMode={dqnMode}
                 dqnMetrics={dqnMetrics}
@@ -496,8 +558,8 @@ export default function Index() {
                 onReset={handleReset}
                 onSignalChange={changeSignal}
                 onTrafficRandomnessChange={setTrafficRandomness}
-                onNoiseConfigChange={setNoiseConfig}
-                onNoiseEnabledChange={setNoiseEnabled}
+                onTrainingNoiseConfigChange={setTrainingNoiseConfig}
+                onTrainingNoiseEnabledChange={setTrainingNoiseEnabled}
                 onAgentEnabledChange={enableAgent}
                 onDqnModeChange={setDqnModeEnabled}
               />
@@ -534,8 +596,8 @@ export default function Index() {
                   signalState={signalState}
                   vehicleCounts={vehicleCounts}
                   config={config}
-                  noiseConfig={noiseConfig}
-                  noiseEnabled={noiseEnabled}
+                  trainingNoiseConfig={trainingNoiseConfig}
+                  trainingNoiseEnabled={trainingNoiseEnabled}
                   agentEnabled={agentEnabled}
                   dqnMode={dqnMode}
                   dqnMetrics={dqnMetrics}
@@ -544,8 +606,8 @@ export default function Index() {
                   onReset={handleReset}
                   onSignalChange={changeSignal}
                   onTrafficRandomnessChange={setTrafficRandomness}
-                  onNoiseConfigChange={setNoiseConfig}
-                  onNoiseEnabledChange={setNoiseEnabled}
+                  onTrainingNoiseConfigChange={setTrainingNoiseConfig}
+                  onTrainingNoiseEnabledChange={setTrainingNoiseEnabled}
                   onAgentEnabledChange={enableAgent}
                   onDqnModeChange={setDqnModeEnabled}
                 />

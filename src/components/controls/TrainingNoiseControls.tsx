@@ -12,35 +12,35 @@
 import React from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { SensorNoiseConfig } from '@/corelogic/probabilisticSensorModel';
+import { TrainingNoiseConfig } from '@/corelogic/probabilisticSensorModel';
 import { Separator } from '@/components/ui/separator';
 
-interface SensorNoiseControlsProps {
-  noiseConfig: SensorNoiseConfig;
-  onChange: (config: SensorNoiseConfig) => void;
+interface TrainingNoiseControlsProps {
+  trainingNoiseConfig: TrainingNoiseConfig;
+  onChange: (config: TrainingNoiseConfig) => void;
 }
 
-export function SensorNoiseControls({
-  noiseConfig,
+export function TrainingNoiseControls({
+  trainingNoiseConfig,
   onChange,
-}: SensorNoiseControlsProps) {
+}: TrainingNoiseControlsProps) {
   const handleQueueLengthNoiseChange = (value: number) => {
     onChange({
-      ...noiseConfig,
+      ...trainingNoiseConfig,
       queueLengthNoise: value,
     });
   };
 
   const handleAvgWaitingTimeNoiseChange = (value: number) => {
     onChange({
-      ...noiseConfig,
+      ...trainingNoiseConfig,
       avgWaitingTimeNoise: value,
     });
   };
 
   const handleAvgSpeedNoiseChange = (value: number) => {
     onChange({
-      ...noiseConfig,
+      ...trainingNoiseConfig,
       avgSpeedNoise: value,
     });
   };
@@ -49,7 +49,7 @@ export function SensorNoiseControls({
     <div className="space-y-4">
       <div className="space-y-1">
         <Label className="text-sm font-medium text-foreground">
-          Sensor Noise Configuration
+          Training Noise Configuration
         </Label>
         <p className="text-xs text-muted-foreground">
           Configure probability distributions for sensor observations. Discrete metrics use discrete distributions; continuous metrics use normal distributions.
@@ -65,12 +65,12 @@ export function SensorNoiseControls({
             Queue Length Noise (k)
           </Label>
           <span className="text-sm font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
-            ±{Math.round(noiseConfig.queueLengthNoise)} vehicles
+            ±{Math.round(trainingNoiseConfig.queueLengthNoise)} vehicles
           </span>
         </div>
         
         <Slider
-          value={[noiseConfig.queueLengthNoise]}
+          value={[trainingNoiseConfig.queueLengthNoise]}
           onValueChange={(values) => handleQueueLengthNoiseChange(Math.round(values[0]))}
           min={0}
           max={10}
@@ -83,7 +83,7 @@ export function SensorNoiseControls({
           <span>10</span>
         </div>
         <p className="text-xs text-muted-foreground">
-          Discrete distribution over [v-{Math.round(noiseConfig.queueLengthNoise)}, ..., v+{Math.round(noiseConfig.queueLengthNoise)}]
+          Discrete distribution over [v-{Math.round(trainingNoiseConfig.queueLengthNoise)}, ..., v+{Math.round(trainingNoiseConfig.queueLengthNoise)}]
         </p>
       </div>
 
@@ -94,12 +94,12 @@ export function SensorNoiseControls({
             Waiting Time Noise
           </Label>
           <span className="text-sm font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
-            {(noiseConfig.avgWaitingTimeNoise * 100).toFixed(0)}%
+            {(trainingNoiseConfig.avgWaitingTimeNoise * 100).toFixed(0)}%
           </span>
         </div>
         
         <Slider
-          value={[noiseConfig.avgWaitingTimeNoise]}
+          value={[trainingNoiseConfig.avgWaitingTimeNoise]}
           onValueChange={(values) => handleAvgWaitingTimeNoiseChange(values[0])}
           min={0}
           max={0.5}
@@ -120,12 +120,12 @@ export function SensorNoiseControls({
             Average Speed Noise
           </Label>
           <span className="text-sm font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
-            {(noiseConfig.avgSpeedNoise * 100).toFixed(0)}%
+            {(trainingNoiseConfig.avgSpeedNoise * 100).toFixed(0)}%
           </span>
         </div>
         
         <Slider
-          value={[noiseConfig.avgSpeedNoise]}
+          value={[trainingNoiseConfig.avgSpeedNoise]}
           onValueChange={(values) => handleAvgSpeedNoiseChange(values[0])}
           min={0}
           max={0.5}

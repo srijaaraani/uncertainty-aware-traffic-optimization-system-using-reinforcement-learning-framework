@@ -85,12 +85,20 @@ export interface TrafficBurstState {
   flowBiasStrength: number; // 0-1 strength of the bias (30-80% stronger arrivals)
 }
 
+export interface EnvironmentNoiseConfig {
+  spawnJitter: number; // 0 (fixed) to 1 (high variability)
+  burstIntensity: number; // multiplier for burst probability
+  directionalBias: number; // -1 (EW heavy) to 1 (NS heavy)
+  speedVariance: number; // variation in vehicle speeds
+}
+
 export interface SimulationConfig {
   spawnRate: number; // vehicles per second (0.1 - 5)
   laneConfig: LaneConfig;
   intersectionSize: number; // pixels
   roadWidth: number; // pixels per lane
-  trafficRandomness: number; // 0 (deterministic) to 1 (chaotic)
+  trafficRandomness: number; // Overall chaos level (existing)
+  environmentNoise: EnvironmentNoiseConfig; // New detailed physical noise
   trafficBurstState?: TrafficBurstState; // Direction-specific traffic patterns
 }
 
