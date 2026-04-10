@@ -346,22 +346,16 @@ export default function Index() {
           </button>
           <div className="w-px h-4 bg-border/50 mx-1" />
           <button
-            onClick={start}
-            disabled={isRunning}
-            className={`p-2.5 rounded-xl transition-all active:scale-90 ${isRunning ? 'opacity-20 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-900 hover:text-green-600'}`}
-            title="Start Simulation"
-            aria-label="Start Simulation"
+            onClick={isRunning ? pause : start}
+            className={`p-2.5 rounded-xl transition-all active:scale-90 hover:bg-slate-100 text-slate-900 ${isRunning ? 'hover:text-amber-600' : 'hover:text-green-600'}`}
+            title={isRunning ? "Pause Simulation" : "Start Simulation"}
+            aria-label={isRunning ? "Pause Simulation" : "Start Simulation"}
           >
-            <Play className="w-5 h-5 fill-current" />
-          </button>
-          <button
-            onClick={pause}
-            disabled={!isRunning}
-            className={`p-2.5 rounded-xl transition-all active:scale-90 ${!isRunning ? 'opacity-20 cursor-not-allowed' : 'hover:bg-slate-100 text-slate-900 hover:text-yellow-600'}`}
-            title="Pause Simulation"
-            aria-label="Pause Simulation"
-          >
-            <Pause className="w-5 h-5" />
+            {isRunning ? (
+              <Pause className="w-5 h-5 fill-current" />
+            ) : (
+              <Play className="w-5 h-5 fill-current" />
+            )}
           </button>
           <div className="w-px h-4 bg-border/50 mx-1" />
           <button
@@ -574,8 +568,8 @@ export default function Index() {
         <section className="max-w-7xl mx-auto w-full px-4 pt-12 pb-8">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {/* Metrics Panel */}
-          <div className="min-h-[220px] overflow-auto custom-scrollbar flex flex-col">
-            <div className="flex-1 overflow-auto custom-scrollbar">
+          <div className="xl:h-[750px] w-full overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col">
+            <div className="flex-1 overflow-auto custom-scrollbar pr-2">
               <MetricsDisplay
                 vehicles={vehicles}
                 config={config}
@@ -594,8 +588,8 @@ export default function Index() {
           </div>
 
           {/* Control Panel */}
-          <div className="overflow-auto custom-scrollbar">
-            <div className="max-w-3xl mx-auto w-full">
+          <div className="xl:h-[750px] w-full overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col">
+            <div className="max-w-3xl mx-auto w-full flex-1 overflow-auto custom-scrollbar pr-2">
               {dqnMode && agentEnabled && (
                 <div className="mb-4">
                   <QValueDisplay

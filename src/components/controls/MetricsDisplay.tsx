@@ -324,7 +324,7 @@ export function MetricsDisplay({
   };
 
   return (
-    <div className="w-full max-h-[600px] flex flex-col">
+    <div className="w-full h-full flex flex-col overflow-hidden">
       <div className="pb-3 flex-shrink-0">
         <div className="flex items-center gap-2 text-lg font-semibold">
           <BarChart3 className="w-5 h-5" />
