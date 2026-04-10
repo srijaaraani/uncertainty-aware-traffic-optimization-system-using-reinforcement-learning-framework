@@ -47,12 +47,13 @@ export interface TrainingNoiseConfig {
 }
 
 /**
- * Default noise configuration with moderate sensor uncertainty.
+ * Default noise configuration — starts at ZERO so DQN begins clean.
+ * User must explicitly move sliders to enable training noise (robust model).
  */
 export const DEFAULT_TRAINING_NOISE_CONFIG: TrainingNoiseConfig = {
-  queueLengthNoise: 2,        // ±2 vehicles for discrete distribution
-  avgWaitingTimeNoise: 0.15,  // 15% std dev for normal distribution
-  avgSpeedNoise: 0.2,         // 20% std dev for normal distribution
+  queueLengthNoise: 0,
+  avgWaitingTimeNoise: 0,
+  avgSpeedNoise: 0,
 };
 
 /**

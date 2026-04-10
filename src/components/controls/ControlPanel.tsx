@@ -65,15 +65,15 @@ export function ControlPanel({
   onDqnModeChange,
 }: ControlPanelProps) {
   return (
-    <Card className="w-full shadow-lg">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
+    <div className="w-full">
+      <div className="pb-3">
+        <div className="flex items-center gap-2 text-lg font-semibold">
           <Settings className="w-5 h-5" />
           Simulation Metrics
-        </CardTitle>
-      </CardHeader>
+        </div>
+      </div>
 
-      <CardContent className="space-y-5">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
@@ -203,7 +203,7 @@ export function ControlPanel({
             <strong>Deep Q-Network Active:</strong> The agent learns an optimal policy by trial and error using the multi-objective reward function.
           </p>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

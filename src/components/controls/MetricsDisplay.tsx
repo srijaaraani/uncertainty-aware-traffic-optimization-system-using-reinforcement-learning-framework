@@ -324,15 +324,15 @@ export function MetricsDisplay({
   };
 
   return (
-    <Card className="w-full shadow-lg max-h-[600px] flex flex-col">
-      <CardHeader className="pb-3 flex-shrink-0">
-        <CardTitle className="flex items-center gap-2 text-lg">
+    <div className="w-full max-h-[600px] flex flex-col">
+      <div className="pb-3 flex-shrink-0">
+        <div className="flex items-center gap-2 text-lg font-semibold">
           <BarChart3 className="w-5 h-5" />
           Traffic Metrics
-        </CardTitle>
-      </CardHeader>
+        </div>
+      </div>
 
-      <CardContent className="space-y-6 overflow-y-auto flex-1">
+      <div className="space-y-6 overflow-y-auto flex-1">
         {/* Time since last signal change */}
         <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
           <div className="flex items-center gap-2">
@@ -632,7 +632,7 @@ export function MetricsDisplay({
             );
           })}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

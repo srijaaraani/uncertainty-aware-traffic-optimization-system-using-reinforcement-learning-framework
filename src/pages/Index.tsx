@@ -8,18 +8,27 @@
  * and multi-agent coordination will be implemented separately and connected later.
  */
 
-import React, { useCallback, useState, useRef } from 'react';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { useSimulation } from '@/hooks/useSimulation';
 import { useVehicles } from '@/hooks/useVehicles';
 import { IntersectionView } from '@/components/simulation/IntersectionView';
 import { ControlPanel } from '@/components/controls/ControlPanel';
 import { MetricsDisplay } from '@/components/controls/MetricsDisplay';
+import { ComparisonDashboard } from '@/components/controls/ComparisonDashboard';
 import { Direction } from '@/types/simulation';
 import { TrainingNoiseConfig, DEFAULT_TRAINING_NOISE_CONFIG, applyTrainingNoise } from '@/corelogic/probabilisticSensorModel';
 import { trafficSignalAgent, AgentObservation, SignalPhase, AgentAction } from '@/corelogic/agent';
 import { signalController } from '@/corelogic/signalController';
 import { dqnAgent, QValueDecision } from '@/corelogic/dqnAgent';
 import { QValueDisplay } from '@/components/controls/QValueDisplay';
+import { getEnvironmentState } from '@/utils/environmentState';
+import { computeReward } from '@/corelogic/rewardFunction';
+import {
+  logTimestep,
+  startSession,
+  resolveMode,
+  clearAll as clearComparisonData,
+} from '@/utils/comparisonLogger';
 import { Settings, X, Play, Pause, RotateCcw, ArrowLeftRight, Bot, Filter, Activity, Eye } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
@@ -60,6 +69,9 @@ export default function Index() {
   // Training (Observation) noise configuration state
   const [trainingNoiseConfig, setTrainingNoiseConfig] = useState<TrainingNoiseConfig>(DEFAULT_TRAINING_NOISE_CONFIG);
   const [trainingNoiseEnabled, setTrainingNoiseEnabled] = useState(true);
+
+  // Comparison dashboard: version counter triggers re-render when new data arrives
+  const [dataVersion, setDataVersion] = useState(0);
 
   // Determine which noise config to use based on training noise enabled state
   // This is used for generating the observation for the agent
@@ -252,6 +264,58 @@ export default function Index() {
 
     return () => clearInterval(timer);
   }, [isRunning, agentEnabled]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // COMPARISON LOGGING: log one timestep per second while running.
+  // Reads Traffic State (.base = ground truth, no noise).
+  // Uses a ref for fast-changing values so the interval is NEVER torn down
+  // by frame-by-frame vehicle updates (vehicles changes every ~16ms).
+  // ─────────────────────────────────────────────────────────────────────────
+  const currentMode = resolveMode(agentEnabled, dqnMode, trainingNoiseConfig);
+  const prevModeRef = useRef(currentMode);
+
+  // Keep latest snapshot of fast-changing values for the stable interval to read
+  const loggingRef = useRef({ vehicles, config, signalState, lastSignalChangeTime, currentMode });
+  useEffect(() => {
+    loggingRef.current = { vehicles, config, signalState, lastSignalChangeTime, currentMode };
+  });
+
+  // Start a fresh session whenever the mode changes
+  useEffect(() => {
+    prevModeRef.current = currentMode;
+    startSession(currentMode);
+  }, [currentMode]);
+
+  // Stable 1-second interval — only depends on isRunning and currentMode
+  useEffect(() => {
+    if (!isRunning) return;
+
+    const interval = setInterval(() => {
+      const { vehicles: v, config: c, signalState: s, lastSignalChangeTime: lsc, currentMode: mode } =
+        loggingRef.current;
+
+      const envState = getEnvironmentState(v, c, s, lsc);
+
+      // Traffic State ground truth (.base) — no noise
+      const queueLength  = envState.ns.queueLength.base  + envState.ew.queueLength.base;
+      const avgWaitingTime =
+        (envState.ns.avgWaitingTime.base + envState.ew.avgWaitingTime.base) / 2;
+      const flowRate = envState.ns.flowRate.base + envState.ew.flowRate.base;
+
+      const rewardComponents = computeReward(envState, false);
+
+      logTimestep(mode, {
+        queueLength,
+        avgWaitingTime,
+        flowRate,
+        reward: rewardComponents.totalReward,
+      });
+
+      setDataVersion((v) => v + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isRunning, currentMode]); // stable deps — no vehicles/config/signalState
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-background to-muted flex flex-col overflow-x-hidden">
@@ -490,7 +554,7 @@ export default function Index() {
       {/* Main Content - Responsive Dashboard */}
       <main className="flex-1 flex flex-col w-full">
         {/* Simulation Panel (full height/width rectangle) */}
-        <section className="relative bg-card border-b border-border shadow-sm flex justify-center items-center w-full h-screen">
+        <section className="relative flex justify-center items-center w-full h-screen">
           <div className="w-full h-full">
             <div className="relative w-full h-full">
               <IntersectionView
@@ -507,10 +571,10 @@ export default function Index() {
         </section>
 
         {/* Metrics + Control panels side-by-side - Constrained for readability */}
-        <section className="max-w-7xl mx-auto w-full px-4 pb-8">
+        <section className="max-w-7xl mx-auto w-full px-4 pt-12 pb-8">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {/* Metrics Panel */}
-          <div className="min-h-[220px] overflow-auto custom-scrollbar bg-card rounded-xl border border-border shadow-sm p-4 flex flex-col">
+          <div className="min-h-[220px] overflow-auto custom-scrollbar flex flex-col">
             <div className="flex-1 overflow-auto custom-scrollbar">
               <MetricsDisplay
                 vehicles={vehicles}
@@ -530,7 +594,7 @@ export default function Index() {
           </div>
 
           {/* Control Panel */}
-          <div className="overflow-auto custom-scrollbar bg-card rounded-xl border border-border shadow-sm p-4">
+          <div className="overflow-auto custom-scrollbar">
             <div className="max-w-3xl mx-auto w-full">
               {dqnMode && agentEnabled && (
                 <div className="mb-4">
@@ -570,6 +634,14 @@ export default function Index() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Comparison Dashboard — full width below main panels */}
+      <section className="max-w-7xl mx-auto w-full px-4 pb-10">
+        <ComparisonDashboard
+          dataVersion={dataVersion}
+          onClear={() => setDataVersion(0)}
+        />
       </section>
       </main>
 
